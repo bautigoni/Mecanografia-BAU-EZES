@@ -113,8 +113,13 @@ lands on its own surface via `routeForRole` (`/admin-general`, `/admin-sede`,
 
 ## 6. Responsive System
 
-`src/styles/global.css` is one large file (~9k lines) with the visual system +
-all page CSS. Responsiveness targets three device classes:
+> **Primary target device: touch Chromebooks** (Acer and similar) — small but
+> rectangular screens. Many of them are **3:2**, not 16:9 (1366×912, 2256×1504),
+> which matters because all the island art is 16:9. Phones are NOT a target yet;
+> they are a planned future step (see §6.2). Optimise for the Chromebook first.
+
+`src/styles/global.css` holds the visual system + all page CSS. Responsiveness
+targets three device classes:
 
 - **Common monitors (≥1280px):** the default desktop layout.
 - **Small laptops / Chromebooks (1280–1366 wide but SHORT, ~768/800 tall):** the
@@ -125,6 +130,176 @@ all page CSS. Responsiveness targets three device classes:
   queries, placed last so they win the cascade without editing the scattered
   earlier overrides). Desktop/Chromebook are untouched by it.
 
+### 6.1 Island stage — the level-map coordinate system
+
+The island map has ONE coordinate system, and everything on it is measured as a
+percentage of that system. Never `vmin`, never pixels.
+
+- `.island-stage` (in `global.css`) is a box with the art's own aspect ratio,
+  centred and **contained** — the art always fits entirely, so a level node can
+  never end up off-screen. `IslandDetailPage` only supplies the ratio through
+  `--art-ar`; the box itself is pure CSS, with no measuring and no `resize`
+  listener.
+- Behind it, `.island-backdrop` covers the viewport and may crop freely: it
+  fills the bands that `contain` leaves over. `island1` uses the real pastel sky;
+  every other world reuses its own art, scaled and blurred
+  (`.island-backdrop--blur`). That blur disappears once the art ships in layers.
+- Level nodes size themselves as a **% of the stage** (`clamp(2.75rem,5.34%,14rem)`
+  + `aspect-square`), and the number inside uses `cqw` against the node. The
+  `5.34%` and `24.21cqw` reproduce the original `9.5vmin` / `2.3vmin` at
+  1920×1080 — that is the reference resolution for every conversion here.
+- Node positions live ONLY in `src/data/levelPositions.ts`, as percentages of
+  the art. **Never** freeze a position as CSS: a rule like
+  `#btnisland6lvl1 { transform: translate(15px,-35px) }` is valid at exactly one
+  screen size and drifts at every other. The `LevelPositionEditor` copies a data
+  array — use that. Do not use `DevLayoutEditor`'s "Generar CSS" on level nodes.
+
+Measured after the switch to `contain` (2026-08-24): the node/stage ratio stays
+at 5.34 % from 375×812 to 3440×1440, and no node falls off-screen anywhere. On
+3:2 Chromebooks the old `cover` box was cropping **16 % of the image**.
+
+**The platform discs stay painted into the art** — that is a deliberate art
+decision. So placing a level is still a visual judgement: the node has to land
+on a disc someone drew. What `contain` buys is that once it is right, it stays
+right at every resolution.
+
+**Placing levels — the visual editor.** This is the intended workflow; it saves
+straight to `src/data/levelPositions.ts`, no copy-paste.
+
+1. Enable it once per browser (it persists):
+   `localStorage.setItem("typely_dev_editor","1")`
+2. Open `/worlds/island2?editor=1` on the dev server.
+3. Drag a node — the whole block moves (base, blue presser, number, glow).
+   Arrow keys nudge it; `Shift` makes the step coarse (x10) and `Alt` makes it
+   fine (position 0.1 %, rotations 0.5°, scale 0.01). The handler calls
+   `preventDefault` on every arrow **before** checking whether a node is
+   selected, because `Alt + ←` is the browser's Back and would otherwise leave
+   the page mid-adjustment.
+4. `S` `X` `Y` `Z` `P` toggle scale / rotateX / rotateY / rotateZ / perspective;
+   arrows then adjust the active one. `Esc` deselects.
+5. `N` and `M` do the same for the **number** drawn on top of the button: `N`
+   moves it (all four arrows), `M` resizes it. See below for why it needs its
+   own controls. The **"Ver apretado"** toggle switches the selected node to its
+   pressed art, and while it is on `N` and the sliders write the *pressed*
+   number position instead of the resting one.
+6. Zoom with the wheel (anchored at the cursor), `+` / `-`, or the panel
+   buttons; pan with `Space` + drag or the middle mouse button; `0` fits.
+7. **`Ctrl/Cmd + S`, or the green "Guardar en el archivo" button** — writes the
+   island's array and Vite's HMR reloads it. "Copiar arreglo" stays as a
+   fallback for when the dev endpoint isn't there.
+
+Everything the editor stores is resolution-independent: position in **% of the
+stage**, sizes as **scale factors**, tilts in **degrees**. It never writes a
+pixel — that is what used to break at other resolutions.
+
+**Why the number needs its own offset (`numX` / `numY` / `numSize`).** The
+number is drawn at the centre of the node box, which is the centre of the
+button PNG. The button image gets the node's tilt and scale; the number
+deliberately does **not** — it keeps the base camera angle so it stays readable
+on a steeply tilted node. The moment a node is tilted or scaled, therefore, the
+canvas centre stops coinciding with the visible centre of the raised disc, and
+the number reads as off-centre. These three fields correct it per level.
+
+They are in **% of the button's width** (`cqw`), never pixels: the node declares
+`container-type: inline-size`, so a `numY: 2` is 2 % of that button's width at
+any resolution and the correction scales with the button. The same rule as
+everything else here — a pixel offset would be right at one screen size only.
+
+**The pressed state needs its own pair.** When a button is pressed its disc
+sinks, and *how far* is decided by each island's art — a cookie and a stone ring
+do not travel the same distance. `numXHover` / `numYHover` hold the number's
+position in that state; left undefined they fall back to the resting pair. Note
+they are written even when `0`, because "absent" and "zero" mean different
+things here. The generic sink itself used to be a hardcoded `-6px → -1px`, which
+made the effect a different size on every screen; it is now `-5.85cqw →
+-0.97cqw`, the same values converted at the 1920×1080 reference.
+
+**Editing the pressed state needs the toggle**, not the mouse: to see it by
+hovering you would have to hold the pointer over the node, and then the keyboard
+is unusable. That is what "Ver apretado" is for.
+
+The panel also has a **"NumSize global"** slider. That one multiplies every
+number on the island and is **not saved** — it is for eyeballing a global size
+before hard-coding it in `IslandDetailPage`. The per-level `Num tamaño` is the
+one that persists.
+
+**The zoom is a lens, not a state.** It is a CSS `transform` on a layer wrapping
+the whole stage, so it changes nothing in the data: `pctFromClient` keeps working
+untouched because `getBoundingClientRect()` already returns the transformed rect.
+Verified: at 1.95x, clicking a node's visual centre still reports its exact
+stored `x` / `y`. Two details that are easy to get wrong if this is ever
+reworked — the transform goes on its **own layer**, not on `.island-stage`, whose
+entrance animation also animates `transform` and would fight it; and the HUD
+panel is rendered through a **portal to `<body>`**, or the lens would magnify the
+control panel along with the map.
+
+The write endpoint lives in `scripts/vite-plugin-level-positions.ts`, registered
+in `vite.config.ts` with `apply: "serve"`, so it exists only under `vite dev`
+and never reaches the production bundle or the Nginx container. It preserves the
+comment block at the head of each island's array and the per-line trailing
+comments.
+
+To check placement without opening the app:
+
+```bash
+node scripts/preview-level-positions.mjs                    # las 15 islas
+node scripts/preview-level-positions.mjs island6 --grid     # con grilla de %
+node scripts/preview-level-positions.mjs island6 --zoom 62,26,20   # x,y,span%
+```
+
+It draws each node over the real art at its true relative size (the same
+5.34 %), writing PNGs to `.preview-niveles/` (gitignored). Needs
+`npm install sharp --no-save`. Use it to confirm a node sits on its disc before
+and after editing `levelPositions.ts`; the `--zoom` view carries a fine
+percentage grid so you can read a platform's centre straight off the image.
+
+### 6.2 Planned: scrollable island map for phones (NOT implemented)
+
+`contain` guarantees the whole island is visible, which is right on Chromebooks
+but cramped on a phone: at 375×812 the stage is only 375×211, and the 44 px
+minimum touch target inflates each node to 11.7 % of the stage (vs the correct
+5.34 %), leaving buttons overlapping. Phones are not a target yet, so this is
+deliberately left undone.
+
+When phones do become a target, do NOT try to make the whole island fit. Let it
+take the full height and **pan horizontally** — the same thing Candy Crush and
+Duolingo do with their maps. At 375×812 that yields a 1443×812 stage and 77 px
+nodes: correct proportions, comfortable touch targets, no clamping. Note this is
+the exact stage size the old `cover` code already produced — what was missing
+was a way to *reach* the parts beyond the screen edge.
+
+Coordinates do not change. The stage stays the same reference system; only the
+window onto it moves. The sketch:
+
+```css
+@media (max-width: 768px) {
+  .island-stage-wrap { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+  .island-stage {
+    position: relative; inset: auto; margin: 0;
+    height: 100%;
+    width: auto;          /* aspect-ratio derives the width */
+  }
+}
+```
+
+Three things still have to be built on top of that sketch:
+
+1. **Auto-centre on entry.** Without it the student opens the map on a random
+   slice. `scrollIntoView({ inline: "center", block: "nearest" })` on the
+   "Actual" node when the world mounts.
+2. **A scroll affordance.** A primary-school kid will not guess there is more map
+   to the right. An edge gradient, or a one-time nudge animation.
+3. **Pick the scale.** Full height is 3.85 screens of panning. The minimum that
+   keeps a node at 44 px without the clamp kicking in is an 824 px stage, i.e.
+   2.2 screens. Choose somewhere in that range.
+
+One known wrinkle: the popover's collision logic (`useLayoutEffect` in
+`IslandDetailPage`, keyed on `viewportTick`) clamps against the **viewport**.
+Inside a scrolling container that maths has to account for scroll offset.
+
+The `.island-backdrop` sits outside the scrolling wrapper, so it stays put while
+the map pans — a free parallax effect.
+
 Key responsive rules in that section:
 - Global `overflow-x: hidden` safety ≤768px.
 - **Gameplay:** the keyboard's per-key `min-width` is reduced so all rows fit a
@@ -132,6 +307,77 @@ Key responsive rules in that section:
   decorative robots hidden; compact exit button.
 - **Island detail:** back/profile become icon-only, compact HUD, no collision.
 - **Logros:** the 4-column reward grid collapses to 2×2.
+
+### 6.3 Level buttons — one themed button per island
+
+The node the kid presses is not one shared graphic. **Each of the 15 islands has
+its own button**, redesigned in the material of its terrain: stone with grass on
+the green islands, ice and bronze on the clockwork one, a glazed cookie on
+candyland. A grass button on a pink cake reads as a mistake, which is why one
+button could never serve fifteen worlds.
+
+`levelButtonFor(worldId, pressed)` in `src/utils/assets.ts` resolves them from
+`LEVEL_BUTTON_BY_WORLD`. All fifteen are registered; an island missing from that
+map falls back to the plain stone `btn-default`, which is now a safety net
+rather than anyone's normal state.
+
+**Two images per island** — resting and pressed. The game swaps them on hover,
+so they must be drawn with the same camera, the same size and in the same place
+on the canvas; if they differ the button jumps under the cursor.
+
+**Storage.**
+
+| Where | What | Tracked |
+|---|---|---|
+| `Images/level-buttons/btn-islandN.png` | the raw two-state sheet exactly as generated | yes, never edited |
+| `Images/level-buttons/LEEME.md` | the full recipe for adding a new island's button | yes |
+| `Images/level-buttons/REFERENCIA-boton-clasico.png` | the shape reference that goes with the generation prompt | yes |
+| `public/assets/level-buttons/btn-islandN[-pressed].webp` | what the game loads | yes |
+| `public/assets/level-buttons/_backups/` | originals kept before a colour pass | gitignored |
+
+Sheets are never edited by hand. `scripts/import-level-button.mjs` holds a table
+of per-island measurements and produces both WebP in one run; re-running it
+regenerates them from the untouched source.
+
+**Geometry — the invariant that keeps them interchangeable.** Every button is
+framed on a **600×445 canvas with the centre of its base at (299.5, 214)**,
+inherited from `btn-default.png`. That is what lets a node's `x`/`y` mean the
+same thing in every island: the coordinate lands on the base that rests on the
+painted platform, not on the alpha bounding box. The importer picks the largest
+scale that still fits the canvas with that centre pinned.
+
+**Sizes are not identical, and that is expected.** Reference base width is
+454 px; the fifteen land between **333 px** (island 9) and **454 px** (islands 1,
+11, 14, 15). The more the decoration spills outside the footprint — maple
+leaves, ferns, sand — the smaller the button has to be drawn to fit the canvas.
+Practical consequence: **islands whose base came out small need a higher `scale`
+on their nodes.** That is per-island tuning done once in the visual editor.
+
+**The number's contrast is a hard requirement, not a nicety.** The game draws a
+large white number on the disc, so the disc must be an even, mid-to-dark colour.
+Measured across the fifteen: 2.80:1 (island 1, the only one below the 3:1 floor
+for large text) up to 8.0:1. `scripts/lighten-disc.mjs` can lighten or darken
+just the disc without touching the rest — it samples the disc's own hue and
+matches by hue and saturation, never by lightness, so a gradient survives.
+
+**The number's colour is per island too.** Not completed → **white**, the
+highest-contrast option on any disc. Completed → a colour of that island's own,
+so progress reads at a glance without a system green pasted over fifteen
+different buttons. Each value comes from measuring what the number actually
+sits on in that button and taking its **split complement** — the opposite hue
+pulled 25 % back toward the original, the relation that contrasts without
+clashing — then picking, from a palette of hues that stay vivid, the nearest one
+clearing 3.5:1. They live in `LEVEL_NUMBER_DONE` / `levelNumberDoneColor()` and
+regenerate with `node scripts/level-number-colors.mjs`. Almost all are light;
+island 1 is the exception and goes dark, because its disc is the one pale enough
+that white itself only reaches 2.80:1 — the completed colour is what makes that
+island legible.
+
+**Adding an island's button:** follow `Images/level-buttons/LEEME.md`. One step
+in it is deliberately manual — measuring the base on a percentage grid — and the
+file explains why it cannot be automated: decoration spills outside the
+footprint asymmetrically and is painted in the same material as the base, so
+neither silhouette nor colour detection survives all fifteen cases.
 
 ### Login mascots — flanking robots
 The two login robots are positioned inline in `LoginPage.tsx` with Tailwind
@@ -222,6 +468,10 @@ edge.
   original and re-run the scripts; keep the web copy trimmed.
 - One-off image edits may use `npx`/Node `sharp` (installed `--no-save`). Local
   asset backups live in `_backups/` (gitignored, not shipped).
+- **Level buttons have their own pipeline** and do not go through the Python
+  helpers: raw two-state sheets in `Images/level-buttons/`, turned into the
+  shipped WebP by `scripts/import-level-button.mjs`. See §6.3 for the geometry
+  contract and `Images/level-buttons/LEEME.md` for the step-by-step recipe.
 
 ## 11. Mascots — Where They Appear
 

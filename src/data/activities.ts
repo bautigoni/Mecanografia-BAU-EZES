@@ -252,21 +252,6 @@ const world2: Activity[] = [
     difficulty: 4,
     description: "Corregí cada palabra con Backspace: el error es distinto en cada una.",
   }),
-  makeActivity({
-    worldId: "island2",
-    levelNumber: 7,
-    title: "Palabras campeonas",
-    subtitle: "Repaso final",
-    instruction: "Escribí la palabra completa.",
-    listenText: "Escribí la palabra completa.",
-    /* Cierre del mundo de palabras: palabras un poco más largas que repasan
-       todo lo aprendido. Sin tildes ni mayúsculas (eso llega en la isla 3). */
-    targets: ["pelota", "ventana", "camino", "bosque", "planeta"],
-    mode: "independent",
-    inputType: "word",
-    difficulty: 4,
-    description: "Repaso final: escribí palabras más largas de corrido.",
-  }),
 ];
 
 const world3: Activity[] = [

@@ -44,8 +44,11 @@ export const assets = {
   shipDiagonalLeft: "/assets/edutic-art/spaceships/ship-diagonal-left.webp",
   shipDiagonalRight: "/assets/edutic-art/spaceships/ship-diagonal-right.webp",
   /* 3D level button images (pre-rendered at base perspective, no number). */
-  levelButton: "/assets/level.png",
-  levelButtonPressed: "/assets/pressed_level.png",
+  /* Botón de nivel BÁSICO — el de piedra sin decorar. Es el que se usa en
+     cualquier isla que todavía no tenga el suyo propio; ver levelButtonFor()
+     más abajo. No lo referencies directo desde una página. */
+  levelButton: "/assets/level-buttons/btn-default.png",
+  levelButtonPressed: "/assets/level-buttons/btn-default-pressed.png",
 
   /* Island 5 props — used by SkillLevelView for the mouse-skill levels. */
   i5Star:    "/assets/edutic-art/island5/star.webp",
@@ -69,6 +72,100 @@ export const assets = {
   i5CastleSquare:   "/assets/edutic-art/island5/castillo-cuadrada.webp",
   i5ZoomBtns:       "/assets/edutic-art/island5/zoom-mas-menos.webp",
 };
+
+/* =====================================================================
+   BOTONES DE NIVEL POR ISLA
+   ---------------------------------------------------------------------
+   Cada mundo puede traer su propio botón, decorado para que pegue con su
+   terreno: pasto en las islas verdes, hielo en la del reloj, glaseado en
+   la de caramelos. Un botón con pasto sobre una torta rosa se ve mal, y
+   por eso no alcanza con uno solo para las quince.
+
+   Las quince ya tienen el suyo. Una isla que NO figure acá cae al básico de
+   piedra sin decorar (btn-default): eso ya no es el estado normal de nadie,
+   queda como red de seguridad si algún día se suma un mundo nuevo o falla
+   un archivo.
+
+   Para dar de alta una isla: dejar los dos WebP en
+   public/assets/level-buttons/ y descomentar su línea. Los dos estados
+   tienen que estar dibujados con la MISMA cámara, el MISMO tamaño y en la
+   MISMA posición del lienzo — si difieren, el botón pega un salto al pasar
+   el mouse. Y el centro del lienzo tiene que caer sobre el centro de la
+   base de piedra (ver CLAUDE.md §6.1), o los niveles de esa isla se
+   desalinean.
+===================================================================== */
+const LEVEL_BUTTONS_DIR = "/assets/level-buttons";
+
+const LEVEL_BUTTON_BY_WORLD: Partial<Record<string, string>> = {
+  island1:  `${LEVEL_BUTTONS_DIR}/btn-island1`,    // teclas: piedra helada, cristales y florcitas
+  island2:  `${LEVEL_BUTTONS_DIR}/btn-island2`,    // piedra con pasto y florcitas
+  island3:  `${LEVEL_BUTTONS_DIR}/btn-island3`,    // mármol y oro, pasto y pétalos
+  island4:  `${LEVEL_BUTTONS_DIR}/btn-island4`,    // piedra con musgo y hojas
+  island5:  `${LEVEL_BUTTONS_DIR}/btn-island5`,    // piedra con pasto y cubos de hielo
+  island6:  `${LEVEL_BUTTONS_DIR}/btn-island6`,    // portal de cristal: runas y drusas
+  island7:  `${LEVEL_BUTTONS_DIR}/btn-island7`,    // jardín: cerezo en flor
+  island8:  `${LEVEL_BUTTONS_DIR}/btn-island8`,    // reloj helado: hielo, bronce y nieve
+  island9:  `${LEVEL_BUTTONS_DIR}/btn-island9`,    // otoño: barro cocido y hojas de arce
+  island10: `${LEVEL_BUTTONS_DIR}/btn-island10`,   // ruinas en la selva: piedra, musgo y helechos
+  island11: `${LEVEL_BUTTONS_DIR}/btn-island11`,   // caramelo: galleta glaseada
+  island12: `${LEVEL_BUTTONS_DIR}/btn-island12`,   // cañón del desierto: roca naranja, arena y cactus
+  island13: `${LEVEL_BUTTONS_DIR}/btn-island13`,   // arcoíris: aros pastel y pasto
+  island14: `${LEVEL_BUTTONS_DIR}/btn-island14`,   // alquimia: bronce, runas y cristales
+  island15: `${LEVEL_BUTTONS_DIR}/btn-island15`,   // laguna: agua, nenúfares y juncos
+};
+
+/* =====================================================================
+   COLOR DEL NÚMERO CUANDO EL NIVEL ESTÁ COMPLETADO
+   ---------------------------------------------------------------------
+   Sin completar, el número va BLANCO: es lo que más contrasta contra
+   cualquier disco. Completado necesita verse distinto de un vistazo, y
+   para eso necesita color — pero uno que pegue con el botón de esa isla,
+   no un verde de sistema igual para las quince.
+
+   Cada valor sale de medir el color que el número tiene realmente detrás
+   en ese botón y buscar su COMPLEMENTARIO PARTIDO: el tono opuesto,
+   traído un 25 % de vuelta hacia el original. Es la relación que
+   contrasta sin pelearse — el opuesto puro chilla y el análogo no se
+   despega. Después se elige, de una paleta de tonos que se mantienen
+   vivos, el más cercano a ese tono que pase 3.5:1 de contraste.
+
+   Se regeneran con:  node scripts/level-number-colors.mjs
+
+   Casi todos son claros a propósito. La isla 1 es la excepción: su disco
+   es un turquesa muy claro — de hecho es la única donde el número blanco
+   queda flojo, 2.80:1 — así que ahí el número completado va oscuro.
+===================================================================== */
+const LEVEL_NUMBER_DONE: Partial<Record<string, string>> = {
+  island1:  "#7a143a",   // vino sobre turquesa claro   — 3.75:1
+  island2:  "#b8ffe3",   // menta clara sobre verdeazul — 3.49:1
+  island3:  "#5be8ba",   // menta sobre borgoña         — 4.30:1
+  island4:  "#b7f000",   // lima sobre verde oscuro     — 3.94:1
+  island5:  "#b8ffe3",   // menta clara sobre azul      — 3.42:1
+  island6:  "#facc15",   // dorado sobre índigo         — 3.63:1
+  island7:  "#b8ffe3",   // menta clara sobre terracota — 3.40:1
+  island8:  "#ff9fca",   // rosa sobre pizarra          — 4.05:1
+  island9:  "#b8ffe3",   // menta clara sobre naranja   — 3.97:1
+  island10: "#54e8c6",   // turquesa sobre verde musgo  — 3.59:1
+  island11: "#5be8ba",   // menta sobre frambuesa       — 3.51:1
+  island12: "#54e8c6",   // turquesa sobre ocre         — 4.05:1
+  island13: "#b7f000",   // lima sobre violeta          — 5.31:1
+  island14: "#facc15",   // dorado sobre verdeazul      — 3.56:1
+  island15: "#ff9fca",   // rosa sobre azul             — 4.19:1
+};
+
+/** Color del número de un nivel COMPLETADO en ese mundo. El menta de marca
+ *  queda de reserva para un mundo que todavía no tenga el suyo. */
+export function levelNumberDoneColor(worldId: string): string {
+  return LEVEL_NUMBER_DONE[worldId] ?? "#5be8ba";
+}
+
+/** Botón de nivel de un mundo. Cae al básico si esa isla todavía no tiene
+ *  el suyo. `pressed` es el estado con el mouse encima. */
+export function levelButtonFor(worldId: string, pressed = false): string {
+  const base = LEVEL_BUTTON_BY_WORLD[worldId];
+  if (!base) return pressed ? assets.levelButtonPressed : assets.levelButton;
+  return `${base}${pressed ? "-pressed" : ""}.webp`;
+}
 
 /* =====================================================================
    CHARACTER & SHIP PROGRESSION SKINS (unlocked by cumulative star total)

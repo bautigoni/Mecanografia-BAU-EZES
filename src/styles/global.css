@@ -546,6 +546,94 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   ESCENARIO DE ISLA — un solo sistema de coordenadas
+   --------------------------------------------------------------------
+   El arte de la isla entra ENTERO en una caja con su misma relación de
+   aspecto, centrada. Los nodos de nivel viven dentro de esa caja y se
+   posicionan en % de ella, así que las coordenadas de
+   src/data/levelPositions.ts caen sobre las plataformas pintadas en
+   CUALQUIER resolución, sin ajuste milimétrico.
+
+   Esto reemplaza a computeIslandContainer() + su listener de `resize`,
+   que medía el viewport y reescribía la caja en píxeles. Aquella caja era
+   el rect COVER de la imagen, y cover RECORTA: en un ultrawide se perdía
+   el 25 % del alto y en un teléfono 4 de 7 nodos quedaban enteramente
+   fuera de pantalla. Con contain no hay nada que recortar.
+
+   --art-ar lo inyecta IslandDetailPage con la relación de aspecto real
+   del arte: 16:9 (1672×941) en los fondos con plataformas, 4:3
+   (1448×1086) en el PNG suelto de la isla 1.
+   ════════════════════════════════════════════════════════════════════ */
+.island-stage-wrap {
+  position: absolute;
+  inset: 0;
+  /* Habilita cqw/cqh: el escenario se mide contra ESTA caja, no contra el
+     viewport. Así sigue andando si algún día el mapa vive dentro de un
+     contenedor más chico (p. ej. el mapa desplazable de teléfono). */
+  container-type: size;
+}
+
+.island-stage {
+  position: absolute;
+  /* inset:0 + margin:auto + tamaño definido = centrado en los dos ejes. */
+  inset: 0;
+  margin: auto;
+  aspect-ratio: var(--art-ar);
+  /* La fórmula de "contain", en CSS: tomá todo el ancho disponible, salvo
+     que eso te deje más alto de lo que entra — ahí mandá la altura. */
+  width: min(100cqw, 100cqh * var(--art-ar));
+}
+
+/* Relleno de las bandas que deja el contain. Cubre la pantalla entera y se
+   recorta libremente: no lleva nada posicionado encima. */
+.island-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Cuando el "fondo" es en realidad el arte (todas las islas menos la 1),
+   se reusa desenfocado para llenar las bandas. El scale evita que el
+   desenfoque deje los bordes transparentes. Es estático — no se le aplica
+   la animación de entrada — así que el navegador lo rasteriza una sola vez.
+   Cuando el arte se rehaga en capas, esto se borra y queda el cielo real. */
+.island-backdrop--blur {
+  transform: scale(1.12);
+  filter: blur(24px) saturate(1.12);
+}
+
+/* ── PENDIENTE · mapa desplazable para teléfonos ─────────────────────────
+   NO implementado a propósito. El equipo objetivo son Chromebooks táctiles
+   (pantalla chica pero rectangular, muchas 3:2), donde el contain de arriba
+   ya deja todo bien. Los teléfonos son un objetivo futuro.
+
+   Cuando lo sean: en un 375×812 el contain deja el escenario en 375×211 y el
+   mínimo táctil de 44px infla cada nodo al 11,7 % del escenario en vez del
+   5,34 % correcto, con botones solapados. La salida NO es hacer entrar la
+   isla entera, sino darle altura completa y desplazarla en horizontal.
+
+   El bloque va acá, y son unas 8 líneas:
+
+     @media (max-width: 768px) {
+       .island-stage-wrap { overflow-x: auto; overflow-y: hidden;
+                            overscroll-behavior-x: contain; }
+       .island-stage { position: relative; inset: auto; margin: 0;
+                       height: 100%; width: auto; }
+     }
+
+   Las coordenadas de levelPositions.ts NO cambian: el escenario sigue siendo
+   el mismo sistema de referencia, sólo se mueve la ventana por la que se lo
+   mira. Falta además el centrado automático en el nivel actual, un indicio
+   visual de que se desplaza, y elegir la escala.
+
+   El detalle completo, con los números y la arruga del popover, está en
+   CLAUDE.md §6.2.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ════════════════════════════════════════════════════════════════════
    COMPACT-HEIGHT PASS — ventana SIN pantalla completa (la barra del
    navegador roba ~120px). El gameplay es una columna flex de altura fija:
    acá achicamos lo flexible (teclas, paddings) para que la consigna, el
@@ -561,66 +649,4 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-height: 560px) {
   .gp-key { height: 1.5rem; font-size: 0.8rem; }
-}
-#btnisland6lvl1 {
-  position: absolute;
-  transform: translate(15px, -35px) rotateX(-28deg) rotateY(2deg) scale(1.6);
-}
-#btnisland6lvl1 > span:nth-of-type(2) > span {
-  transform: scale(1.4);
-}
-#btnisland6lvl2 {
-  position: absolute;
-  transform: translate(-80px, -8px) rotateX(48deg) scale(0.9);
-}
-#btnisland6lvl2 > span:nth-of-type(2) > span {
-  transform: translate(0px, -2px) scale(1.5);
-}
-#btnisland6lvl3 {
-  position: absolute;
-  transform: translate(-55px, 0px) rotateX(58deg) scale(1.5);
-}
-#btnisland6lvl3 > span:nth-of-type(2) > span {
-  position: relative;
-  top: -2px;
-  left: 1px;
-  transform: scale(1.25);
-}
-#btnisland6lvl4 {
-  position: absolute;
-  transform: translate(25px, 38px) rotateX(49deg) scale(1.15);
-}
-#btnisland6lvl4 > span:nth-of-type(2) > span {
-  position: relative;
-  top: -5px;
-  left: 0px;
-  transform: scale(1.25);
-}
-#btnisland6lvl5 {
-  position: absolute;
-  transform: translate(47px, -38px) rotateX(49deg) rotateY(3deg) rotateZ(4deg) scale(1.6);
-}
-#btnisland6lvl5 > span:nth-of-type(2) > span {
-  position: relative;
-  top: -6px;
-  transform: rotateZ(13deg) scale(1.25);
-}
-#btnisland6lvl6 {
-  position: absolute;
-  right: 250px;
-  transform: translate(10px, -10px)rotateZ(6deg) rotateX(-40deg) scale(1.8);
-}
-#btnisland6lvl6 > span:nth-of-type(2) > span {
-  position: relative;
-  top: -6px;
-  transform: scale(1.35);
-}
-#btnisland6lvl7 {
-  position: absolute;
-  transform: translate(45px, 5px) rotateX(57deg) rotateY(2deg) rotateZ(-1deg) scale(1.85);
-}
-#btnisland6lvl7 > span:nth-of-type(2) > span {
-  position: relative;
-  top: -5px;
-  transform: rotateZ(17deg) scale(1.35);
 }
