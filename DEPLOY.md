@@ -5,6 +5,12 @@
 > salir, por **pull request desde `dev`**. Nunca commitear directo a
 > `production`. Ver `CLAUDE.md` §17.
 >
+> **El autodeploy nunca anduvo.** Las diez corridas del workflow fallaron con
+> `ssh: no key found`: el secreto `SSH_PRIVATE_KEY` existe pero no es una clave
+> parseable. Y su script corre `docker compose up -d --build`, justo el build
+> completo que tumba la VM de 956MB (ver `CLAUDE.md` §13.1). Hoy se despliega a
+> mano con lo que sigue en este documento.
+>
 > **Falta un paso de admin:** la rama desplegada todavía se llama `main` en
 > GitHub. Hay que renombrarla a `production` (hace falta admin) y confirmar que
 > el ruleset `protect-main` haya seguido el renombre. Hasta entonces
