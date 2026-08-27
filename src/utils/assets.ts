@@ -96,7 +96,7 @@ const ISLAND_ART: Record<string, IslandArtEntry> = {
   island3:  { split: true },               // mármol y oro, pasto y pétalos
   island4:  { split: true },               // piedra con musgo y hojas
   island5:  { split: true },               // piedra con pasto y cubos de hielo
-  island6:  {},               // portal de cristal: runas y drusas
+  island6:  { split: true },               // portal de cristal: runas y drusas
   island7:  {},               // jardín: cerezo en flor
   island8:  {},               // reloj helado: hielo, bronce y nieve
   island9:  {},               // otoño: barro cocido y hojas de arce
