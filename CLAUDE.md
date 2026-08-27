@@ -404,10 +404,27 @@ the combined art's aspect ratio to the island layer's. Every `x/y` in that
 island's `levelPositions.ts` entry has to be placed again. Split the art
 *before* positioning the nodes, never after.
 
-**To split one:** drop `island.webp` (alpha, trimmed) and `sky.webp` into
-`public/assets/islands/islandN/`, then add `split: true` to that island's row
-in `ISLAND_ART`. Command-line scripts do not read that flag — `scripts/island-paths.mjs`
-infers it from whether `island.webp` exists on disk, so the two can never drift.
+**To split one**, drop two sources into `Images/islands/islandN/` and run the
+importer:
+
+| Source | Format | What it is |
+|---|---|---|
+| `island-source.png` | **PNG with real alpha** | the island and its platforms, cut out |
+| `sky-source.jpg` | JPG or PNG | the sky behind it, no platforms |
+
+```bash
+node scripts/import-island-art.mjs island7   # or with no argument, every island that has sources
+```
+
+It writes `island.webp` and `sky.webp`, flips `split: true` in `ISLAND_ART`, and
+does two things you would otherwise have to remember: it **trims the island's
+transparent margin** (that margin is dead screen, because the stage box takes
+its aspect ratio from this image), and it **refuses an island with no alpha
+channel** — an opaque cut-out covers the whole sky and the mistake only shows up
+once you open the page. Nothing is ever upscaled.
+
+Command-line scripts do not read the `split` flag: `scripts/island-paths.mjs`
+infers it from whether `island.webp` exists on disk, so the two cannot drift.
 
 ### 6.4 Level buttons — one themed button per island
 
