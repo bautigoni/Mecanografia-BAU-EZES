@@ -584,6 +584,17 @@ a { color: inherit; text-decoration: none; }
   width: min(100cqw, 100cqh * var(--art-ar));
 }
 
+/* Excepción para el arte diseñado a sangre: nace cortado de punta a punta
+   (ver islandCoverMode() en assets.ts) y NUNCA puede achicarse por debajo de
+   la pantalla — eso mostraría el borde cortante que le falta al dibujo. Es la
+   fórmula de "cover", el mismo truco pero con max(): agranda todo lo que haga
+   falta y que sobre se recorte, jamás al revés. Los nodos de nivel siguen
+   midiéndose en % de ESTA caja, así que pueden terminar fuera de la parte
+   visible en ciertas relaciones de aspecto — es lo esperado, no un bug. */
+.island-stage--cover {
+  width: max(100cqw, 100cqh * var(--art-ar));
+}
+
 /* Relleno de las bandas que deja el contain. Cubre la pantalla entera y se
    recorta libremente: no lleva nada posicionado encima. */
 .island-backdrop {

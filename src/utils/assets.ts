@@ -88,6 +88,12 @@ const ISLANDS_DIR = "/assets/islands";
 type IslandArtEntry = {
   /** El arte ya está separado en cielo + isla recortada. */
   split?: boolean;
+  /** El dibujo nace cortado de punta a punta a propósito — sin margen de aire,
+   *  con bordes que asumen que algo sigue fuera de cámara. Encogerla para que
+   *  entre entera mostraría ese corte crudo. En vez de "contain" (entra
+   *  entera, quizás con bandas) usa "cover": llena la pantalla siempre, y lo
+   *  que sobre por ancho o alto se recorta — nunca al revés. */
+  cover?: boolean;
 };
 
 const ISLAND_ART: Record<string, IslandArtEntry> = {
@@ -96,7 +102,7 @@ const ISLAND_ART: Record<string, IslandArtEntry> = {
   island3:  { split: true },               // mármol y oro, pasto y pétalos
   island4:  { split: true },               // piedra con musgo y hojas
   island5:  { split: true },               // piedra con pasto y cubos de hielo
-  island6:  { split: true },               // portal de cristal: runas y drusas
+  island6:  { split: true, cover: true },  // portal de cristal: runas y drusas — dibujada a sangre, ver `cover` arriba
   island7:  {},               // jardín: cerezo en flor
   island8:  {},               // reloj helado: hielo, bronce y nieve
   island9:  {},               // otoño: barro cocido y hojas de arce
@@ -118,6 +124,9 @@ export type IslandArt = {
    *  miden los % de levelPositions.ts. `null` mientras esa isla siga siendo
    *  una sola imagen con el cielo adentro. */
   island: string | null;
+  /** true si el escenario tiene que llenar la pantalla siempre (recortando lo
+   *  que sobre), en vez de entrar entero con bandas. Ver `IslandArtEntry.cover`. */
+  cover: boolean;
 };
 
 const islandFile = (worldId: string, file: string) => `${ISLANDS_DIR}/${worldId}/${file}`;
@@ -134,6 +143,7 @@ export function islandArt(worldId: string): IslandArt {
   return {
     sky: islandFile(worldId, separada ? "sky.webp" : "scene.webp"),
     island: separada ? islandFile(worldId, "island.webp") : null,
+    cover: !!ISLAND_ART[worldId]?.cover,
   };
 }
 

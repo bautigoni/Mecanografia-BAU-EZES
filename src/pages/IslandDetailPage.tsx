@@ -284,7 +284,7 @@ export function IslandDetailPage() {
      recortar, y sin JS no hay nada que se pueda desincronizar. ---------- */
   /* Las dos capas del arte. Mientras la isla no esté separada, `island` es
      null y el cielo ES la escena entera — ver islandArt() en assets.ts. */
-  const { sky: islandBgPath, island: islandImgPath } = islandArt(world.slug);
+  const { sky: islandBgPath, island: islandImgPath, cover: stageCover } = islandArt(world.slug);
   const [islandImgSize, setIslandImgSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
@@ -835,7 +835,7 @@ export function IslandDetailPage() {
           }
         >
         <div
-          className={`island-stage transition-opacity duration-300 ${bgReady && (!islandImgPath || islandImgSize) ? "animate-island-zoom" : "opacity-0"}`}
+          className={`island-stage ${stageCover ? "island-stage--cover" : ""} transition-opacity duration-300 ${bgReady && (!islandImgPath || islandImgSize) ? "animate-island-zoom" : "opacity-0"}`}
         >
           {/* El arte nítido, llenando el escenario. No lleva object-fit: la
               caja YA tiene su relación de aspecto, así que calza al píxel. */}
