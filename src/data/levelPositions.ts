@@ -172,7 +172,7 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
     { x: 43, y: 53 },
     { x: 28, y: 46 },
     { x: 31, y: 38 },
-    { x: 42, y: 39 },
+    { x: 55, y: 58 },  // N7 - separado de N2, que estaba encima; provisoria
   ],
 
   island6: [
