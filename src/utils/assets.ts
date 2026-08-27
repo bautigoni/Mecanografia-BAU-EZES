@@ -92,7 +92,7 @@ type IslandArtEntry = {
 
 const ISLAND_ART: Record<string, IslandArtEntry> = {
   island1:  { split: true },  // teclas: piedra helada, cristales y florcitas
-  island2:  {},               // piedra con pasto y florcitas
+  island2:  { split: true },               // piedra con pasto y florcitas
   island3:  {},               // mármol y oro, pasto y pétalos
   island4:  {},               // piedra con musgo y hojas
   island5:  {},               // piedra con pasto y cubos de hielo
