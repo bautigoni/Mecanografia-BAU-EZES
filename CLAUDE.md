@@ -736,11 +736,26 @@ gh pr merge --merge
 (`tsc --noEmit && vite build`) and `npx tsc -p api/tsconfig.json`, plus the
 deploy checklist in §13.
 
-**Deployment is wired but not settled.** `.github/workflows/deploy.yml` fires on
-push to `production` and also accepts a manual run from the Actions tab
-(`workflow_dispatch`). Whether every merge should auto-deploy is still an open
-decision — if you want merges to stop deploying on their own, delete the
-`push:` trigger and keep `workflow_dispatch`.
+**Deployment is wired but has never actually run.** `.github/workflows/deploy.yml`
+fires on push to `production` and also accepts a manual run from the Actions tab
+(`workflow_dispatch`). Whether every merge *should* auto-deploy is still an open
+decision — to stop merges deploying on their own, drop the `push:` trigger and
+keep `workflow_dispatch`.
+
+Two things are broken in it today, and both need fixing before it can work:
+
+1. **The SSH key never parsed.** All ten runs in the workflow's history failed
+   the same way — `ssh.ParsePrivateKey: ssh: no key found`. The
+   `SSH_PRIVATE_KEY` secret exists but its contents are not a usable private
+   key (usually a missing `-----BEGIN`/`END-----` envelope or stripped
+   newlines). Re-adding the secret needs admin.
+2. **It contradicts §13.1.** The script runs `docker compose up -d --build`,
+   which is exactly the full build that OOM-crashes the 956MB VM. If this
+   workflow is ever meant to deploy the frontend, it has to be rewritten around
+   the prebuilt-`dist` procedure instead.
+
+So today the app is deployed by hand, per `DEPLOY.md`. Do not tell anyone a
+merge to `production` publishes anything until both points above are resolved.
 
 > **Pending admin step — this is not done yet.** The deployed branch is still
 > named `main` on GitHub: it is the default branch, it carries the
