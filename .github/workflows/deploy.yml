@@ -1,15 +1,22 @@
 name: Deploy to VPS
 
-# Triggers on every push to main. Runs the same manual steps from
-# DEPLOY.md §7 over SSH, against the project's VPS at 168.75.68.75
-# (project path /opt/apps/typely). Caddy is NOT reloaded here — the
-# frontend container serves only loopback, so a compose recreate is
-# enough; a manual `caddy validate && caddy reload` only matters when
-# the Caddyfile itself changes.
+# Corre los mismos pasos manuales de DEPLOY.md §7 por SSH, contra el VPS del
+# proyecto en 168.75.68.75 (ruta /opt/apps/typely). Caddy NO se recarga acá:
+# el contenedor del frontend sirve solo en loopback, así que alcanza con
+# recrear el compose; un `caddy validate && caddy reload` a mano solo importa
+# cuando cambia el Caddyfile.
+#
+# Dispara con cada push a `production`, que es la rama desplegada. `dev` NO
+# despliega: ahí se trabaja, y se mergea a `production` recién cuando los
+# cambios andan y están listos para salir.
+#
+# `workflow_dispatch` queda para poder desplegar a mano desde la pestaña
+# Actions sin tener que empujar un commit.
 
 on:
   push:
-    branches: [main]
+    branches: [production]
+  workflow_dispatch:
 
 jobs:
   deploy:

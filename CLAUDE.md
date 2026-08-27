@@ -689,8 +689,8 @@ bundle. The DB is **Supabase**, not the local `db` container.
 - Keep Docker building; do not bind host ports 80/443 in app compose; keep the
   `127.0.0.1:3005` / `:3006` ports stable. Don't ship dead buttons.
 - Spanish must be correct: tildes (á é í ó ú), ñ, mayúsculas, inverted `¿` `¡`.
-- **Never push to `main` directly** — it auto-deploys. Work on a short-lived
-  branch and merge through a pull request (see §17).
+- **Work on `dev`; never commit to `production` directly.** `production` is
+  what is deployed, and only takes changes that already work (see §17).
 - After any code change run `npm run build` (= `tsc --noEmit && vite build`); fix
   failures before claiming done. Report which files changed and how to test.
 - Deploy the frontend to the Oracle VM with the prebuilt-`dist` procedure in
@@ -711,33 +711,51 @@ the API/DB require the backend (see `DEPLOY.md`). Reset demo data by clearing th
 
 ## 17. Branching & Git Workflow
 
-**There is one long-lived branch: `main`.** It is what `typely.bauhub.online`
-runs — every push to it auto-deploys via `.github/workflows/deploy.yml` — so it
-must stay releasable at all times.
+Two long-lived branches:
 
-GitHub enforces this: `main` is protected and rejects direct pushes. The only
-way in is a pull request.
+- **`dev` — where the work happens.** Branch off it for anything non-trivial,
+  or commit straight to it for small things. It is allowed to be broken for a
+  while; that is what it is for.
+- **`production` — what is deployed.** It only ever receives changes that are
+  finished, working, and ready to go live. Treat it as the record of what is
+  running, not as a place to work.
 
-1. **Branch off `main`** for the work at hand, with a descriptive name
-   (`feat/…`, `fix/…`, `chore/…`). Keep it short-lived.
-2. **Before opening the PR**, run `npm run build` (`tsc --noEmit && vite build`)
-   and `npx tsc -p api/tsconfig.json`, plus the deploy checklist in §13, so
-   `main` never breaks.
-3. **Open the PR into `main`, merge it, delete the branch.** Do not accumulate
-   long-lived parallel branches — that is what this replaced.
+`dev` reaches `production` through a pull request, and only when the change is
+actually operational — it builds, it runs, and you would be comfortable with it
+live. Never commit to `production` directly.
 
 ```bash
-git checkout main && git pull
-git checkout -b feat/lo-que-sea
-# …edit, commit…
-git push -u origin feat/lo-que-sea
-gh pr create --base main && gh pr merge --merge --delete-branch
+git checkout dev && git pull
+# …work, commit, push to dev…
+# when it is genuinely ready to ship:
+gh pr create --base production --head dev
+gh pr merge --merge
 ```
 
-**History note.** This repo used to run `dev` → `master`/`main` as two or three
-long-lived branches, and older docs described that. They were consolidated into
-`main` alone; `dev` and `master` are gone. If you find a doc still describing
-the old flow, it is stale — fix it.
+**Before opening the PR into `production`**, run `npm run build`
+(`tsc --noEmit && vite build`) and `npx tsc -p api/tsconfig.json`, plus the
+deploy checklist in §13.
+
+**Deployment is wired but not settled.** `.github/workflows/deploy.yml` fires on
+push to `production` and also accepts a manual run from the Actions tab
+(`workflow_dispatch`). Whether every merge should auto-deploy is still an open
+decision — if you want merges to stop deploying on their own, delete the
+`push:` trigger and keep `workflow_dispatch`.
+
+> **Pending admin step — this is not done yet.** The deployed branch is still
+> named `main` on GitHub: it is the default branch, it carries the
+> `protect-main` ruleset, and renaming it needs admin rights that the day-to-day
+> account does not have. Someone with admin on `bautigoni/Mecanografia-BAU-EZES`
+> has to **rename `main` → `production`** (Settings → Branches), then confirm
+> the ruleset condition followed the rename to `refs/heads/production`. Until
+> that happens the docs above describe the intended state, not the live one, and
+> nothing auto-deploys — the workflow waits for a branch called `production`.
+>
+> While renaming, also point the VM at the right branch: `/opt/apps/typely` on
+> the VPS runs `git pull`, and its tracking ref is stale (§13.1).
+
+**History note.** This repo previously ran `dev` → `master`/`main`, then briefly
+a single `main`. Older docs describing either are stale — fix them.
 
 ## 18. Agent Working Rules
 

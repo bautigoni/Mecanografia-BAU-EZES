@@ -27,6 +27,8 @@ Tailwind 4 on the front, Fastify + Drizzle + Postgres 16 behind, three Docker
 containers behind Caddy. Internal ids stay `edutic_*` / `island1..15` for
 backward compatibility; only user-facing strings say "TYPELY".
 
-**One branch: `main`.** It is protected and auto-deploys, so it only changes
-through a pull request from a short-lived branch, after `npm run build` passes.
-See `CLAUDE.md` §17.
+**Two branches.** `dev` is where the work happens — commit there. `production`
+is what is deployed, and only receives changes that already build, run, and are
+ready to go live, through a pull request from `dev`. Never commit to
+`production` directly. See `CLAUDE.md` §17 — including the pending admin step:
+the deployed branch is still called `main` until someone with admin renames it.

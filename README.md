@@ -15,16 +15,17 @@ back to localStorage-only when the API is offline (demo mode).
 
 ## Branching workflow
 
-There is one long-lived branch: **`main`**. It is the host/production branch —
-every push auto-deploys — so it is protected and rejects direct pushes. Work on
-a short-lived branch and merge through a pull request once `npm run build`
-passes. See `CLAUDE.md` §17 for the full rules.
+Two long-lived branches. **`dev`** is where the work happens. **`production`**
+is what is deployed, and only receives changes that already build, run and are
+ready to go live — through a pull request from `dev`. Never commit to
+`production` directly. See `CLAUDE.md` §17 for the full rules, including the
+pending rename of the deployed branch (still called `main` on GitHub).
 
 ```bash
-git checkout main && git pull
-git checkout -b feat/lo-que-sea
-git push -u origin feat/lo-que-sea
-gh pr create --base main && gh pr merge --merge --delete-branch
+git checkout dev && git pull
+# …work, commit, push to dev…
+# when it is genuinely ready to ship:
+gh pr create --base production --head dev && gh pr merge --merge
 ```
 
 ## Roles & dashboards

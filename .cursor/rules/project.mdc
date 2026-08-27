@@ -20,8 +20,8 @@ were folded back into `CLAUDE.md` so there is one place to keep correct.
   strategy after 3 failed attempts; never touch `node_modules/`, `dist/`,
   `.vite/`, `package-lock.json`, local IDE settings or the originals in
   `Images/`; run `npm run build` before claiming done; report what changed.
-- **§17 Branching** — one branch, `main`. It is protected and auto-deploys, so
-  it changes only through a pull request from a short-lived branch.
+- **§17 Branching** — two branches. Work on `dev`; `production` is what is
+  deployed and only takes finished, working changes through a PR from `dev`.
 - **§6 Responsive System** — monitors, Chromebooks (the constraint is *height*),
   phones (the final RESPONSIVE PASS block in `global.css`). Verify at 375×812,
   1366×768 and 1440×900.
