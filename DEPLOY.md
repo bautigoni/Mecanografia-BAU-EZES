@@ -1,13 +1,19 @@
 # Deploying TYPELY on Oracle VPS
 
-> **Branching:** hay una sola rama larga, **`main`**, que es host/producción y
-> se auto-despliega en cada push vía `.github/workflows/deploy.yml`. Está
-> protegida: no acepta pushes directos, solo **pull requests** desde ramas
-> cortas. Ver `CLAUDE.md` §17.
+> **Branching:** dos ramas largas. En **`dev`** se trabaja; **`production`** es
+> la que queda desplegada y solo recibe cambios que ya andan y están listos para
+> salir, por **pull request desde `dev`**. Nunca commitear directo a
+> `production`. Ver `CLAUDE.md` §17.
 >
-> **Ojo en el VPS:** antes seguía `origin/dev` desde una rama local llamada
-> `main`. `dev` ya no existe — verificá que su rama siga a `origin/main` antes
-> del próximo `git pull`.
+> **Falta un paso de admin:** la rama desplegada todavía se llama `main` en
+> GitHub. Hay que renombrarla a `production` (hace falta admin) y confirmar que
+> el ruleset `protect-main` haya seguido el renombre. Hasta entonces
+> `.github/workflows/deploy.yml` no dispara solo: espera una rama `production`,
+> y se puede correr a mano desde Actions.
+>
+> **Ojo en el VPS:** `/opt/apps/typely` corre `git pull`, y su rama local seguía
+> a `origin/dev` de la estructura vieja. Verificá a qué apunta antes del próximo
+> deploy.
 
 > **Estado real del VPS actual (`bauhub`, 168.75.68.75):** el repo vive en
 > **`/opt/apps/typely`** (no `/typely`) y existe un
