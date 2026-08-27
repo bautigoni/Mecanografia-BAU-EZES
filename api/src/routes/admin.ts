@@ -136,7 +136,16 @@ export async function adminRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const [s] = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
     if (!s || s.role !== "alumno") return reply.code(404).send({ error: "Alumno no encontrado." });
-    if (!canActOnSede({ role: actor.role, sedeId: actor.sede }, s.sedeId)) {
+    if (actor.role === "profesor") {
+      // Professors can only see students in their own classes.
+      if (!s.classId) return reply.code(403).send({ error: "El alumno no pertenece a ninguno de tus cursos." });
+      const [membership] = await db
+        .select({ classId: schema.classTeachers.classId })
+        .from(schema.classTeachers)
+        .where(and(eq(schema.classTeachers.classId, s.classId), eq(schema.classTeachers.userId, actor.sub)))
+        .limit(1);
+      if (!membership) return reply.code(403).send({ error: "El alumno no pertenece a ninguno de tus cursos." });
+    } else if (!canActOnSede({ role: actor.role, sedeId: actor.sede }, s.sedeId)) {
       return reply.code(403).send({ error: "El alumno es de otra sede." });
     }
     let className: string | null = null;

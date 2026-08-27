@@ -164,12 +164,12 @@ const worldMapPositions: Record<Activity["worldId"], MapPosition> = {
   island2:  { x:  46, y: 13 },  // #3
   island7:  { x:  66, y: 49 },  // #4
   island13: { x:  86, y: 13 },  // #5
-  island3:  { x: 106, y: 49 },  // #6
-  island8:  { x: 126, y: 13 },  // #7
-  island4:  { x: 146, y: 49 },  // #8
-  island9:  { x: 166, y: 13 },  // #9
-  island10: { x: 186, y: 49 },  // #10
-  island5:  { x: 206, y: 13 },  // #11
+  island5:  { x: 106, y: 49 },  // #6
+  island3:  { x: 126, y: 13 },  // #7
+  island8:  { x: 146, y: 49 },  // #8
+  island4:  { x: 166, y: 13 },  // #9
+  island9:  { x: 186, y: 49 },  // #10
+  island10: { x: 206, y: 13 },  // #11
   island11: { x: 226, y: 49 },  // #12
   island12: { x: 246, y: 13 },  // #13
   island14: { x: 266, y: 49 },  // #14
@@ -317,12 +317,12 @@ export const WORLD_PEDAGOGY_ORDER: ReadonlyArray<Activity["worldId"]> = [
   "island2",   // 3  words
   "island7",   // 4  long words + phrases
   "island13",  // 5  friendly messages
-  "island3",   // 6  uppercase, ñ, accents
-  "island8",   // 7  punctuation & signs
-  "island4",   // 8  symbols & code
-  "island9",   // 9  email writing
-  "island10",  // 10 browser searches
-  "island5",   // 11 digital / mouse skills
+  "island5",   // 6  digital / mouse skills
+  "island3",   // 7  uppercase, ñ, accents
+  "island8",   // 8  punctuation & signs
+  "island4",   // 9  symbols & code
+  "island9",   // 10 email writing
+  "island10",  // 11 browser searches
   "island11",  // 12 basic keyboard commands
   "island12",  // 13 windows & tabs
   "island14",  // 14 advanced shortcuts

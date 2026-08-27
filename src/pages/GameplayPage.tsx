@@ -884,13 +884,24 @@ export function GameplayPage() {
 
           return (
             <>
-              {/* Objective — floating text, no box. */}
-              <span
-                className="font-display font-extrabold text-text/80 text-sm uppercase tracking-[0.18em]"
-                style={floatShadow}
-              >
-                Objetivo {visibleObjective} / {totalObjectives}
-              </span>
+              {/* Objective progress — slim bar with the fraction + live
+                  precision folded in, so the screen carries ONE clean status
+                  element instead of scattered counters. */}
+              <div className="w-[min(20rem,80vw)] flex flex-col gap-1">
+                <div
+                  className="flex items-baseline justify-between text-[11px] font-extrabold text-text/75 uppercase tracking-[0.14em] px-0.5"
+                  style={floatShadow}
+                >
+                  <span>Objetivo {visibleObjective} / {totalObjectives}</span>
+                  <span>{accuracy}% precisión</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-white/45 overflow-hidden shadow-[inset_0_1px_3px_rgba(23,53,95,0.18)] border border-white/50">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-mint via-accent to-accent-strong transition-all duration-500 ease-out"
+                    style={{ width: `${Math.round((visibleObjective / totalObjectives) * 100)}%` }}
+                  />
+                </div>
+              </div>
 
               {/* Target — the hero. A light floating glass card holds ONLY the
                   letter/word so it reads as the focal point of the scene. */}
@@ -1000,17 +1011,6 @@ export function GameplayPage() {
         })()}
       </section>
 
-      {/* Errors / precision — own compact row so it never overlaps the keyboard. */}
-      {!isCompleted && (
-        <div
-          className="shrink-0 flex justify-center gap-5 text-xs font-bold text-text/70 pb-1 z-10"
-          style={{ textShadow: "0 1px 8px rgba(255,255,255,0.9)" }}
-        >
-          <span>Errores: {errors}</span>
-          <span>Precisión: {accuracy}%</span>
-        </div>
-      )}
-
       {/* Two motivational robots flank the keyboard, switching phrases each target. */}
       {!isCompleted && (() => {
         const errored = isErrorActive || (errors > 0 && attempts > 0 && (attempts - errors) / attempts < 0.6);
@@ -1063,12 +1063,16 @@ export function GameplayPage() {
             /* Keycaps con profundidad real: borde inferior grueso (el "lado"
                de la tecla), brillo superior tipo keycap y sombra suave en
                capas. El color sigue identificando cada fila. */
+            /* Teclas esmeriladas blancas y cohesivas. El color de cada fila
+               vive SOLO en el borde inferior (el "lado" 3D de la tecla), así
+               se conserva la pista de color para escanear el home-row sin el
+               ruido de rellenos arcoíris en cada tecla. */
             const rowKeyTone: Record<string, string> = {
-              num: "bg-gradient-to-b from-amber-50 via-amber-100 to-amber-200 border-amber-300 border-b-amber-400 text-amber-900",
-              top: "bg-gradient-to-b from-pink-50 via-pink-100 to-pink-200 border-pink-300 border-b-pink-400 text-pink-900",
-              home: "bg-gradient-to-b from-emerald-50 via-emerald-100 to-emerald-200 border-emerald-300 border-b-emerald-400 text-emerald-900",
-              bot: "bg-gradient-to-b from-violet-50 via-violet-100 to-violet-200 border-violet-300 border-b-violet-400 text-violet-900",
-              mod: "bg-gradient-to-b from-sky-50 via-sky-100 to-sky-200 border-sky-300 border-b-sky-400 text-sky-900",
+              num: "bg-white/75 text-slate-700 border-white/80 border-b-amber-300",
+              top: "bg-white/75 text-slate-700 border-white/80 border-b-pink-300",
+              home: "bg-white/75 text-slate-700 border-white/80 border-b-emerald-300",
+              bot: "bg-white/75 text-slate-700 border-white/80 border-b-violet-300",
+              mod: "bg-white/75 text-slate-700 border-white/80 border-b-sky-300",
             };
             return (
               <div
@@ -1084,17 +1088,17 @@ export function GameplayPage() {
                   const isWide = key === "Backspace" || key === "Shift" || key === "Enter";
 
                   const keyClasses = [
-                    "gp-key relative rounded-[0.6rem] font-black transition-all duration-100 border-2 border-b-[4px]",
-                    "shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_5px_12px_rgba(23,53,95,0.16)]",
-                    "hover:-translate-y-[2px] hover:brightness-[1.04]",
-                    "active:translate-y-[1px] active:border-b-2 active:shadow-[inset_0_1px_2px_rgba(23,53,95,0.18)]",
+                    "gp-key relative rounded-xl font-extrabold transition-all duration-100 border border-b-[3px] backdrop-blur-sm",
+                    "shadow-[0_2px_7px_rgba(23,53,95,0.10)]",
+                    "hover:-translate-y-[2px] hover:bg-white/95",
+                    "active:translate-y-[1px] active:border-b active:shadow-sm",
                     "flex items-center justify-center select-none",
                     isSpace ? "w-48 sm:w-72 h-8 sm:h-9 text-sm" : isWide ? "w-16 sm:w-24 h-8 sm:h-9 text-xs" : "w-10 h-8 sm:w-12 sm:h-9 text-sm",
-                    // Target/combo override the row colour with the accent blue.
+                    // Target/combo override the row colour with the brand gradient.
                     isTarget && !isCombo
-                      ? "bg-accent text-white border-accent-strong border-b-accent-strong shadow-[0_6px_18px_rgba(49,89,232,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] scale-105 animate-target-pulse"
+                      ? "bg-gradient-to-br from-mint via-accent to-accent-strong text-white border-accent-strong border-b-accent-strong shadow-[0_8px_22px_rgba(49,89,232,0.5)] scale-110 animate-target-pulse"
                       : isCombo
-                        ? "bg-accent-strong text-white border-accent-strong border-b-accent-strong shadow-[0_6px_18px_rgba(49,89,232,0.5),inset_0_1px_0_rgba(255,255,255,0.4)] scale-110 animate-target-pulse"
+                        ? "bg-gradient-to-br from-accent to-accent-strong text-white border-accent-strong border-b-accent-strong shadow-[0_8px_22px_rgba(49,89,232,0.55)] scale-110 animate-target-pulse"
                         : rowKeyTone[row.tone],
                     isFindHint ? "animate-key-find ring-4 ring-accent-pink/50" : "",
                     isPressed ? "animate-key-pop scale-90" : "",

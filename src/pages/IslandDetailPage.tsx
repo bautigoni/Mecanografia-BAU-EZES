@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Lock, MapPin, RotateCcw, Star } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { Toast } from "../components/common/Toast";
@@ -8,9 +8,10 @@ import { StarCounter } from "../components/common/StarCounter";
 import { CharacterSkin } from "../components/common/CharacterSkin";
 import { SkinUnlockCelebration } from "../components/common/SkinUnlockCelebration";
 import { SkinProgressBar } from "../components/common/SkinProgressBar";
+import { LevelStars } from "../components/common/LevelStars";
 import { getWorldBySlug, getWorlds, worldStarProgress, WORLD_PEDAGOGY_ORDER, type Level, type LevelPosition } from "../data/worlds";
-import { LevelPositionEditor } from "../components/dev/LevelPositionEditor";
-import { assets } from "../utils/assets";
+import { LevelPositionEditor, type PerspField, type PerspMode } from "../components/dev/LevelPositionEditor";
+import { assets, levelButtonFor, levelNumberDoneColor } from "../utils/assets";
 
 /* The dev level-position editor is available in local dev builds, OR when a
    superadmin entered "modo desarrollador" from the god-mode chooser (which
@@ -75,6 +76,12 @@ export function IslandDetailPage() {
   /* The level info popover is closed by default (least intrusive) and opens
      only when a level is tapped; tapping outside closes it again. */
   const [popoverOpen, setPopoverOpen] = useState(false);
+  /* Collision-aware popover: after it renders we measure it and nudge it (in
+     px) so it never spills off the viewport and never overlaps the fixed top
+     header. The base side/vertical anchoring still decides the initial open
+     direction; this just clamps it into the safe on-screen band. */
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverNudge, setPopoverNudge] = useState({ dx: 0, dy: 0 });
 
   /* ---- Dev-only level position editor state ---- */
   const mapRef = useRef<HTMLElement>(null);
@@ -94,15 +101,144 @@ export function IslandDetailPage() {
   /* Hover state for the pressed button image (disabled during editor). */
   const [hoveredIndex, setHoveredIndex] = useState(-1);
   /* Perspective adjustment mode: null = position, otherwise the active 3D property. */
-  const [perspMode, setPerspMode] = useState<"scale" | "rotateX" | "rotateY" | "rotateZ" | "persp" | null>(null);
+  const [perspMode, setPerspMode] = useState<PerspMode>(null);
   const [numScale, setNumScale] = useState(1);
+  /* Muestra el nodo seleccionado en su estado APRETADO. Con esto prendido,
+     los modos del número (N y M) y sus sliders escriben numXHover/numYHover
+     en vez de numX/numY: es la única forma de acomodar el número del estado
+     apretado, porque para verlo habría que tener el mouse encima y entonces
+     no se puede usar el teclado. */
+  const [previewPressed, setPreviewPressed] = useState(false);
+
+  /* ---- Lupa del editor: zoom + desplazamiento ----------------------
+     Es SÓLO una lente. Va como transform CSS sobre el escenario entero,
+     así que no toca ni un dato: los % siguen siendo los mismos y
+     pctFromClient sigue andando solo, porque getBoundingClientRect ya
+     devuelve el rectángulo transformado.
+
+     z = aumento, x/y = corrimiento en px de pantalla. El transform se
+     aplica como translate(x,y) scale(z) con origen en el centro. */
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 });
+  const stageWrapRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef<{ sx: number; sy: number; bx: number; by: number } | null>(null);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const ZOOM_MIN = 1, ZOOM_MAX = 8;
+
+  /** Aplica un zoom nuevo dejando quieto el punto (sx, sy) de la pantalla.
+   *  Sin esto el zoom siempre tira al centro y perdés de vista el nodo que
+   *  estabas ajustando. */
+  const zoomAt = useCallback((nextZ: number | ((prev: number) => number), sx?: number, sy?: number) => {
+    setView((v) => {
+      const pedido = typeof nextZ === "function" ? nextZ(v.z) : nextZ;
+      const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pedido));
+      const el = stageWrapRef.current;
+      if (!el || z === v.z) return { ...v, z };
+      const r = el.getBoundingClientRect();
+      const cxp = r.left + r.width / 2, cyp = r.top + r.height / 2;
+      /* Sin punto de anclaje (botones del panel, teclado) se usa el centro. */
+      const dx = (sx ?? cxp) - cxp, dy = (sy ?? cyp) - cyp;
+      const k = z / v.z;
+      let x = dx - (dx - v.x) * k;
+      let y = dy - (dy - v.y) * k;
+      /* Tope de arrastre: el escenario nunca se puede sacar de pantalla. */
+      const mx = ((z - 1) * r.width) / 2, my = ((z - 1) * r.height) / 2;
+      x = Math.min(mx, Math.max(-mx, x));
+      y = Math.min(my, Math.max(-my, y));
+      return z === 1 ? { z: 1, x: 0, y: 0 } : { z, x, y };
+    });
+  }, []);
+
+  const resetView = useCallback(() => setView({ z: 1, x: 0, y: 0 }), []);
+
+  /** ¿El evento salió del panel del editor? Chequea que sea un Element antes
+   *  de preguntar por closest: el target de un evento no siempre lo es. */
+  const enHud = (t: EventTarget | null) => t instanceof Element && !!t.closest("[data-hud]");
+
+  /* Rueda = zoom sobre el cursor. Va como listener nativo y no como onWheel
+     de React: React los registra pasivos y un listener pasivo no puede
+     preventDefault, así que la página se movería debajo del zoom. */
+  useEffect(() => {
+    if (!editorOn) return;
+    const el = stageWrapRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (enHud(e.target)) return;
+      e.preventDefault();
+      const paso = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      zoomAt((z) => z * paso, e.clientX, e.clientY);
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [editorOn, zoomAt]);
+
+  /* Desplazamiento: botón del medio, o barra espaciadora + arrastre. Los dos
+     porque no todos los trackpads de Chromebook tienen botón del medio. */
+  useEffect(() => {
+    if (!editorOn) return;
+    function onDown(e: PointerEvent) {
+      if (enHud(e.target)) return;
+      if (e.button !== 1 && !spaceHeld) return;
+      e.preventDefault();
+      panRef.current = { sx: e.clientX, sy: e.clientY, bx: view.x, by: view.y };
+    }
+    function onMove(e: PointerEvent) {
+      const p = panRef.current;
+      if (!p) return;
+      const el = stageWrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const mx = ((view.z - 1) * r.width) / 2, my = ((view.z - 1) * r.height) / 2;
+      setView((v) => ({
+        ...v,
+        x: Math.min(mx, Math.max(-mx, p.bx + (e.clientX - p.sx))),
+        y: Math.min(my, Math.max(-my, p.by + (e.clientY - p.sy))),
+      }));
+    }
+    function onUp() { panRef.current = null; }
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [editorOn, spaceHeld, view.x, view.y, view.z]);
+
+  /* La barra espaciadora arma el modo arrastre mientras se la tiene apretada.
+     Con preventDefault porque los nodos son <button>: sin eso, la barra
+     dispara el que tenga el foco. */
+  useEffect(() => {
+    if (!editorOn) return;
+    function down(e: KeyboardEvent) {
+      if (e.code !== "Space" || e.repeat) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      setSpaceHeld(true);
+    }
+    function up(e: KeyboardEvent) {
+      if (e.code === "Space") { setSpaceHeld(false); panRef.current = null; }
+    }
+    /* Si el foco se va de la ventana con la barra apretada, el keyup nunca
+       llega y el modo queda pegado. */
+    function blur() { setSpaceHeld(false); panRef.current = null; }
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, [editorOn]);
 
   useEffect(() => {
     setSelectedIndex(initialIndex);
   }, [initialIndex]);
 
-  /* Natural size of the BACKGROUND art — needed to anchor the level map to
-     the image's object-cover rect (see computeIslandContainer). */
+  /* Tamaño natural del arte de fondo. Sólo se usa para sacarle la relación
+     de aspecto y pasársela al escenario por --art-ar (ver más abajo); la
+     caja en sí la arma el CSS. */
   const [bgImgSize, setBgImgSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
@@ -146,12 +282,22 @@ export function IslandDetailPage() {
 
   const world = maybeWorld;
 
-  /* ---- Island container: island.png centered via object-fit: contain.
-     Pixel dimensions so the level map matches the image exactly. ---- */
+  /* ---- Escenario de isla ------------------------------------------------
+     El arte entra ENTERO (contain) en una caja con su misma relación de
+     aspecto, y los nodos de nivel viven dentro de esa caja posicionados en %
+     de ella. La caja la arma el CSS (.island-stage, en global.css): acá sólo
+     calculamos la relación de aspecto del arte y se la pasamos por --art-ar.
+
+     Antes esto era computeIslandContainer(): medía el viewport, calculaba el
+     rect COVER de la imagen en píxeles y lo reescribía en cada `resize`. Eso
+     tenía dos problemas. Uno, cover RECORTA: en un teléfono se veía el 25 %
+     de la imagen y 4 de 7 nodos quedaban enteramente fuera de pantalla. Dos,
+     todo dependía de que el listener de resize corriera — si no corría, los
+     nodos quedaban pegados a un rect viejo. Con contain nada se puede
+     recortar, y sin JS no hay nada que se pueda desincronizar. ---------- */
   const islandImgPath = ISLAND_IMG[world.slug];
   const islandBgPath = ISLAND_BG[world.slug] ?? world.background;
   const [islandImgSize, setIslandImgSize] = useState<{ w: number; h: number } | null>(null);
-  const [islandContainer, setIslandContainer] = useState<{ left: number; top: number; w: number; h: number } | null>(null);
 
   useEffect(() => {
     if (!islandImgPath) { setIslandImgSize(null); return; }
@@ -161,41 +307,30 @@ export function IslandDetailPage() {
     img.src = islandImgPath;
   }, [islandImgPath]);
 
-  const computeIslandContainer = useCallback(() => {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    if (islandImgSize) {
-      /* Isla con PNG propio (island1): caja CONTAIN — la imagen entra entera
-         y los nodos comparten su sistema de coordenadas. */
-      const iAR = islandImgSize.w / islandImgSize.h;
-      const vAR = vw / vh;
-      let cw: number, ch: number;
-      if (vAR > iAR) { ch = vh; cw = ch * iAR; }
-      else            { cw = vw; ch = cw / iAR; }
-      setIslandContainer({ left: (vw - cw) / 2, top: (vh - ch) / 2, w: cw, h: ch });
-      return;
-    }
-    if (bgImgSize) {
-      /* Islas SIN PNG propio: las plataformas están pintadas en el FONDO, que
-         se renderiza con object-cover (recortado en pantallas anchas/altas).
-         El mapa de niveles se ancla al rectángulo COVER de la imagen — no al
-         viewport — así los % guardados caen sobre las plataformas pintadas en
-         CUALQUIER aspect ratio. (Antes los nodos eran % del viewport y en
-         pantallas anchas los candados quedaban flotando fuera de las
-         plataformas.) */
-      const scale = Math.max(vw / bgImgSize.w, vh / bgImgSize.h);
-      const cw = bgImgSize.w * scale;
-      const ch = bgImgSize.h * scale;
-      setIslandContainer({ left: (vw - cw) / 2, top: (vh - ch) / 2, w: cw, h: ch });
-      return;
-    }
-    setIslandContainer(null);
-  }, [islandImgSize, bgImgSize]);
+  /* El arte que manda es el PNG suelto de la isla si existe (island1, 4:3),
+     y el fondo con las plataformas pintadas en el resto (16:9). Mientras no
+     se haya medido usamos 16:9, que es lo que sirve para 14 de las 15 islas
+     — y de todos modos el escenario está en opacity-0 hasta que carga. */
+  const artSize = islandImgPath ? islandImgSize : bgImgSize;
+  const artAspect = artSize ? artSize.w / artSize.h : 1672 / 941;
+  /* La imagen nítida del escenario, y la que rellena las bandas del contain. */
+  const artSrc = islandImgPath ?? islandBgPath;
+  /* island1 ya tiene cielo propio (assets.homeBg) → va nítido detrás. En el
+     resto el "fondo" ES el arte, así que se reusa ampliado y desenfocado
+     para llenar las bandas sin inventar un color plano. */
+  const backdropIsArt = !islandImgPath;
 
+  /* Sólo el popover necesita enterarse de un resize (para recalcular su
+     colisión con los bordes). Antes venía gratis porque islandContainer
+     cambiaba en cada resize; ahora el escenario es CSS puro, así que el
+     listener queda acotado a mientras el popover está abierto. */
+  const [viewportTick, setViewportTick] = useState(0);
   useEffect(() => {
-    computeIslandContainer();
-    window.addEventListener("resize", computeIslandContainer);
-    return () => window.removeEventListener("resize", computeIslandContainer);
-  }, [computeIslandContainer]);
+    if (!popoverOpen) return;
+    const onResize = () => setViewportTick((t) => t + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [popoverOpen]);
 
   const actualIndex = world.levels.findIndex((level) => level.state === "Actual");
   const currentIndex = actualIndex >= 0 ? actualIndex : initialIndex;
@@ -239,6 +374,63 @@ export function IslandDetailPage() {
   const popoverTy =
     popoverVBand === "top" ? "-0.6rem" : popoverVBand === "bottom" ? "calc(-100% + 0.6rem)" : "-50%";
   const popoverState = selectedLevel.state.toLowerCase();
+
+  /* Keep the open popover fully inside the viewport AND below the fixed top
+     header. We measure the rendered popover and translate it by a few px when
+     it would spill off an edge: a node low on the screen flips its card up, a
+     high node flips it down, and a card near the header is pushed under it. On
+     a fresh open / selection change the nudge resets to zero first, then this
+     effect re-runs to clamp the clean position (converges in 1–2 frames). */
+  const lastPopoverKey = useRef("");
+  useLayoutEffect(() => {
+    const el = popoverRef.current;
+    if (!popoverOpen || !el) {
+      if (popoverNudge.dx !== 0 || popoverNudge.dy !== 0) setPopoverNudge({ dx: 0, dy: 0 });
+      lastPopoverKey.current = "";
+      return;
+    }
+    const key = String(safeIndex);
+    if (lastPopoverKey.current !== key) {
+      lastPopoverKey.current = key;
+      if (popoverNudge.dx !== 0 || popoverNudge.dy !== 0) {
+        setPopoverNudge({ dx: 0, dy: 0 });
+        return; // re-runs with a clean slate before measuring
+      }
+    }
+    /* Reconstruct the FULL-SIZE box from the rect centre + layout size. The
+       inner pop-in animation scales the panel around its centre, so the rect's
+       centre is stable while offsetWidth/Height stay at the un-transformed
+       layout size — this makes the clamp accurate even mid-animation. */
+    const rect = el.getBoundingClientRect();
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const cx = (rect.left + rect.right) / 2;
+    const cy = (rect.top + rect.bottom) / 2;
+    const left = cx - w / 2;
+    const right = cx + w / 2;
+    const top = cy - h / 2;
+    const bottom = cy + h / 2;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 14;
+    const topSafe = 96; // clear the fixed island header at the top
+    let dx = 0;
+    let dy = 0;
+    if (w < vw - margin * 2) {
+      if (left < margin) dx = margin - left;
+      else if (right > vw - margin) dx = vw - margin - right;
+    }
+    if (h >= vh - margin - topSafe) {
+      dy = topSafe - top; // taller than the safe band → pin under the header
+    } else if (top < topSafe) {
+      dy = topSafe - top;
+    } else if (bottom > vh - margin) {
+      dy = vh - margin - bottom;
+    }
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      setPopoverNudge((prev) => ({ dx: prev.dx + dx, dy: prev.dy + dy }));
+    }
+  }, [popoverOpen, safeIndex, viewportTick, bgReady, popoverNudge.dx, popoverNudge.dy]);
 
   function selectLevel(index: number) {
     const level = world.levels[index];
@@ -373,9 +565,13 @@ export function IslandDetailPage() {
 
   /** Adjust a 3D perspective property on the selected editor node. */
   const handleUpdatePerspective = useCallback(
-    (index: number, field: "scale" | "rotateX" | "rotateY" | "rotateZ" | "perspective", value: number) => {
+    (index: number, field: PerspField, value: number) => {
+      /* NaN es la señal de "borrá este campo": la usa el botón Centrar para
+         limpiar la posición del número apretado, que no tiene un valor
+         neutro — no estar definida ES el estado por defecto. */
+      const limpio = Number.isFinite(value) ? value : undefined;
       setEditorPositions((prev) =>
-        prev.map((pos, i) => (i === index ? { ...pos, [field]: value } : pos)),
+        prev.map((pos, i) => (i === index ? { ...pos, [field]: limpio } : pos)),
       );
     },
     [],
@@ -387,11 +583,14 @@ export function IslandDetailPage() {
       const r1 = (v: number) => Math.round(v * 10) / 10;
       const arr = activePositions.map((p) => {
         const parts: string[] = [];
-        if (p.scale !== undefined && p.scale !== 1) parts.push(`scale: ${r1(p.scale)}`);
+        if (p.scale !== undefined && p.scale !== 1) parts.push(`scale: ${Math.round(p.scale * 100) / 100}`);
         if (p.rotateX !== undefined && p.rotateX !== 0) parts.push(`rotateX: ${r1(p.rotateX)}`);
         if (p.rotateY !== undefined && p.rotateY !== 0) parts.push(`rotateY: ${r1(p.rotateY)}`);
         if (p.rotateZ !== undefined && p.rotateZ !== 0) parts.push(`rotateZ: ${r1(p.rotateZ)}`);
         if (p.perspective !== undefined && p.perspective !== 500) parts.push(`perspective: ${r1(p.perspective)}`);
+        if (p.numX !== undefined && p.numX !== 0) parts.push(`numX: ${r1(p.numX)}`);
+        if (p.numY !== undefined && p.numY !== 0) parts.push(`numY: ${r1(p.numY)}`);
+        if (p.numSize !== undefined && p.numSize !== 1) parts.push(`numSize: ${Math.round(p.numSize * 100) / 100}`);
         let s = `{ x: ${p.x}, y: ${p.y}`;
         if (parts.length) s += `, ${parts.join(", ")}`;
         return `  ${s} },`;
@@ -415,7 +614,7 @@ export function IslandDetailPage() {
         const r1 = (v: number) => Math.round(v * 10) / 10;
         const arr = activePositions.map((p) => {
           const parts: string[] = [];
-          if (p.scale !== undefined && p.scale !== 1) parts.push(`scale: ${r1(p.scale)}`);
+          if (p.scale !== undefined && p.scale !== 1) parts.push(`scale: ${Math.round(p.scale * 100) / 100}`);
           if (p.rotateX !== undefined && p.rotateX !== 0) parts.push(`rotateX: ${r1(p.rotateX)}`);
           if (p.rotateY !== undefined && p.rotateY !== 0) parts.push(`rotateY: ${r1(p.rotateY)}`);
           if (p.rotateZ !== undefined && p.rotateZ !== 0) parts.push(`rotateZ: ${r1(p.rotateZ)}`);
@@ -441,20 +640,35 @@ export function IslandDetailPage() {
       if (e.key === "y" || e.key === "Y") { e.preventDefault(); setPerspMode((p) => p === "rotateY" ? null : "rotateY"); return; }
       if (e.key === "z" || e.key === "Z") { e.preventDefault(); setPerspMode((p) => p === "rotateZ" ? null : "rotateZ"); return; }
       if (e.key === "p" || e.key === "P") { e.preventDefault(); setPerspMode((p) => p === "persp" ? null : "persp"); return; }
+      if (e.key === "n" || e.key === "N") { e.preventDefault(); setPerspMode((p) => p === "numpos" ? null : "numpos"); return; }
+      if (e.key === "m" || e.key === "M") { e.preventDefault(); setPerspMode((p) => p === "numsize" ? null : "numsize"); return; }
 
-      // Arrow keys — need a selected node
-      if (editorSelectedIndex < 0) return;
+      /* Lupa. No cambia ningún dato, sólo cómo se ve. */
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomAt((z) => z * 1.25); return; }
+      if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomAt((z) => z / 1.25); return; }
+      if (e.key === "0") { e.preventDefault(); resetView(); return; }
 
-      const big = e.shiftKey;
       const arrow = e.key;
       const isArrow = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(arrow);
       if (!isArrow) return;
+      /* preventDefault ANTES de mirar si hay nodo seleccionado: con el editor
+         abierto, Alt+← es "atrás" en el historial del navegador y te saca de
+         la página en el medio del ajuste. */
       e.preventDefault();
+      if (editorSelectedIndex < 0) return;
+
+      /* Tres pasos por propiedad: Shift para grueso, Alt para fino, sin nada
+         para el normal. El fino es el que permite terminar de acomodar un
+         nodo cuando el paso normal ya se pasa de largo. */
+      const big = e.shiftKey;
+      const fino = e.altKey;
+      const paso = (normal: number, grueso: number, chico: number) =>
+        big ? grueso : fino ? chico : normal;
 
       switch (perspMode) {
         case "scale":
           if (arrow === "ArrowUp" || arrow === "ArrowDown") {
-            const sStep = big ? 0.2 : 0.02;
+            const sStep = paso(0.02, 0.2, 0.01);
             setEditorPositions((prev) =>
               prev.map((pos, i) => {
                 if (i !== editorSelectedIndex) return pos;
@@ -468,7 +682,7 @@ export function IslandDetailPage() {
 
         case "rotateX":
           if (arrow === "ArrowUp" || arrow === "ArrowDown") {
-            const d = big ? 10 : 2;
+            const d = paso(2, 10, 0.5);
             setEditorPositions((prev) =>
               prev.map((pos, i) => {
                 if (i !== editorSelectedIndex) return pos;
@@ -482,7 +696,7 @@ export function IslandDetailPage() {
 
         case "rotateY":
           if (arrow === "ArrowLeft" || arrow === "ArrowRight") {
-            const d = big ? 10 : 2;
+            const d = paso(2, 10, 0.5);
             setEditorPositions((prev) =>
               prev.map((pos, i) => {
                 if (i !== editorSelectedIndex) return pos;
@@ -496,7 +710,7 @@ export function IslandDetailPage() {
 
         case "rotateZ":
           if (arrow === "ArrowLeft" || arrow === "ArrowRight") {
-            const d = big ? 10 : 2;
+            const d = paso(2, 10, 0.5);
             setEditorPositions((prev) =>
               prev.map((pos, i) => {
                 if (i !== editorSelectedIndex) return pos;
@@ -510,13 +724,57 @@ export function IslandDetailPage() {
 
         case "persp":
           if (arrow === "ArrowUp" || arrow === "ArrowDown") {
-            const d = big ? 100 : 20;
+            const d = paso(20, 100, 5);
             setEditorPositions((prev) =>
               prev.map((pos, i) => {
                 if (i !== editorSelectedIndex) return pos;
                 const cur = pos.perspective ?? 500;
-                const next = Math.max(50, Math.round((cur + (arrow === "ArrowUp" ? d : -d)) / 10) * 10);
+                /* Redondeo al entero y no a la decena: si no, el paso fino de 5 se pierde. */
+                const next = Math.max(50, Math.round(cur + (arrow === "ArrowUp" ? d : -d)));
                 return { ...pos, perspective: next === 500 ? undefined : next };
+              }),
+            );
+          }
+          return;
+
+        /* Mueve SÓLO el número sobre el botón, sin tocar el nodo. El paso va
+           en % del ancho del botón, igual que el dato que se guarda. */
+        case "numpos": {
+          const d = paso(0.5, 5, 0.1);
+          const dx = arrow === "ArrowRight" ? d : arrow === "ArrowLeft" ? -d : 0;
+          const dy = arrow === "ArrowDown" ? d : arrow === "ArrowUp" ? -d : 0;
+          /* Con el toggle de apretado prendido se toca el par del hover. */
+          const [campoX, campoY] = previewPressed
+            ? (["numXHover", "numYHover"] as const)
+            : (["numX", "numY"] as const);
+          setEditorPositions((prev) =>
+            prev.map((pos, i) => {
+              if (i !== editorSelectedIndex) return pos;
+              /* El hover arranca desde donde esté el de reposo, no desde cero:
+                 si no, el primer flechazo lo manda al centro del lienzo. */
+              const baseX = pos[campoX] ?? (previewPressed ? pos.numX ?? 0 : 0);
+              const baseY = pos[campoY] ?? (previewPressed ? pos.numY ?? 0 : 0);
+              const nx = round1(baseX + dx);
+              const ny = round1(baseY + dy);
+              return {
+                ...pos,
+                [campoX]: nx === 0 && !previewPressed ? undefined : nx,
+                [campoY]: ny === 0 && !previewPressed ? undefined : ny,
+              };
+            }),
+          );
+          return;
+        }
+
+        case "numsize":
+          if (arrow === "ArrowUp" || arrow === "ArrowDown") {
+            const d = paso(0.02, 0.2, 0.01);
+            setEditorPositions((prev) =>
+              prev.map((pos, i) => {
+                if (i !== editorSelectedIndex) return pos;
+                const cur = pos.numSize ?? 1;
+                const next = Math.max(0.3, Math.round((cur + (arrow === "ArrowUp" ? d : -d)) * 100) / 100);
+                return { ...pos, numSize: next === 1 ? undefined : next };
               }),
             );
           }
@@ -524,7 +782,7 @@ export function IslandDetailPage() {
 
         default: {
           // No perspective mode — move position
-          const step = big ? 5 : 0.5;
+          const step = paso(0.5, 5, 0.1);
           setEditorPositions((prev) =>
             prev.map((pos, i) => {
               if (i !== editorSelectedIndex) return pos;
@@ -542,7 +800,7 @@ export function IslandDetailPage() {
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [editorOn, editorSelectedIndex, perspMode, activePositions, logConfig]);
+  }, [editorOn, editorSelectedIndex, perspMode, previewPressed, activePositions, logConfig]);
 
   return (
     <main
@@ -551,71 +809,60 @@ export function IslandDetailPage() {
          frame and any sub-pixel gap so a white edge can never flash. */
       style={{ "--scene-bg": `url("${islandBgPath}")`, backgroundColor: "#ebe3f7" } as CSSProperties}
     >
-      {/* Full-viewport background — lives OUTSIDE the aspect-locked stage so it
-          always covers the whole screen (object-cover, never letterboxed).
-          This is what kills the white borders during the entrance zoom and
-          when navigating back to the worlds map. */}
+      {/* ── CAPA 1 · CIELO ──────────────────────────────────────────────
+          Llena la pantalla entera con object-cover y puede recortarse todo
+          lo que haga falta, porque no contiene nada posicionable: su único
+          trabajo es que las bandas que deja el contain no queden vacías.
+          En island1 es el cielo pastel de verdad; en el resto es la misma
+          imagen del arte, ampliada y desenfocada, para no inventar un color
+          plano que pelee con la paleta de cada isla. Cuando el arte se
+          rehaga en capas, acá va el cielo real y se cae el desenfoque. */}
       <img
-        /* Reveal only when BOTH the background AND the island art are ready, so
-           the island never pops in a frame after the bg/platforms. */
-        className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-300 ${bgReady && (!islandImgPath || islandImgSize) ? "animate-island-zoom" : "opacity-0"}`}
+        className={`island-backdrop ${backdropIsArt ? "island-backdrop--blur" : ""} transition-opacity duration-300 ${bgReady ? "opacity-100" : "opacity-0"}`}
         src={islandBgPath}
-        alt={world.title}
+        alt=""
+        aria-hidden="true"
         decoding="async"
         // @ts-expect-error — fetchPriority is supported by all modern browsers
         fetchpriority="high"
       />
 
-      {/* Aspect-ratio-locked stage: the island PNG and every level node share
-          the same 16:9 coordinate system, so % positions land on the real
-          painted platforms on every screen size. */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="false">
-        <div className="relative w-full h-full">
-          {/* Island PNG — only shown when separate island art is available */}
-          {islandImgPath && islandContainer && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${islandContainer.left}px`,
-                top: `${islandContainer.top}px`,
-                width: `${islandContainer.w}px`,
-                height: `${islandContainer.h}px`,
-                zIndex: 5,
-                pointerEvents: "none",
-              }}
-            >
-              <img
-                src={islandImgPath}
-                alt=""
-                decoding="async"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  userSelect: "none",
-                }}
-              />
-            </div>
-          )}
+      {/* ── CAPA 2 · ESCENARIO ──────────────────────────────────────────
+          Caja con la relación de aspecto del arte, centrada y CONTENIDA:
+          la imagen entra entera en cualquier pantalla. El arte y todos los
+          nodos comparten este sistema de coordenadas, así que los % de
+          levelPositions.ts caen sobre las plataformas pintadas siempre.
+          La caja la resuelve el CSS — sin medir, sin listener de resize. */}
+      <div className="island-stage-wrap" ref={stageWrapRef} style={{ "--art-ar": artAspect } as CSSProperties}>
+        {/* Lente del editor. Es una capa aparte y no un transform sobre
+            .island-stage porque ahí vive la animación de entrada, que también
+            anima transform y se pisarían. Con zoom 1 no emite transform, así
+            que fuera del editor este div no hace absolutamente nada. */}
+        <div
+          className="absolute inset-0"
+          style={
+            view.z !== 1 || view.x !== 0 || view.y !== 0
+              ? { transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: "center", cursor: spaceHeld ? "grab" : undefined }
+              : undefined
+          }
+        >
+        <div
+          className={`island-stage transition-opacity duration-300 ${bgReady && (!islandImgPath || islandImgSize) ? "animate-island-zoom" : "opacity-0"}`}
+        >
+          {/* El arte nítido, llenando el escenario. No lleva object-fit: la
+              caja YA tiene su relación de aspecto, así que calza al píxel. */}
+          <img
+            className="block w-full h-full select-none"
+            src={artSrc}
+            alt={world.title}
+            decoding="async"
+          />
 
-          {/* Level map — always renders. Matches island container bounds when
-              available, otherwise fills the viewport (old background approach). */}
+          {/* Mapa de niveles — mismo sistema de coordenadas que el arte. */}
           <section
             className="absolute inset-0 pointer-events-none z-10"
             aria-label="Niveles del mundo"
             ref={mapRef}
-            style={
-              islandContainer
-                ? {
-                    position: "absolute",
-                    left: `${islandContainer.left}px`,
-                    top: `${islandContainer.top}px`,
-                    width: `${islandContainer.w}px`,
-                    height: `${islandContainer.h}px`,
-                  }
-                : undefined
-            }
           >
             {editorAvailable() && editorOn && (
               <LevelPositionEditor
@@ -636,6 +883,11 @@ export function IslandDetailPage() {
                 onCursorMove={handleEditorCursor}
                 onCopyAt={handleEditorCopyAt}
                 onUpdatePerspective={handleUpdatePerspective}
+                zoom={view.z}
+                onZoom={(factor) => zoomAt((z) => z * factor)}
+                onZoomReset={resetView}
+                previewPressed={previewPressed}
+                onTogglePressed={() => setPreviewPressed((v) => !v)}
                 onToast={setMessage}
               />
             )}
@@ -646,12 +898,19 @@ export function IslandDetailPage() {
                 lives on the inner <img> so it doesn't fight the positioning
                 transform on the wrapper. */}
             <span
-              className="absolute z-20 pointer-events-none"
+              /* El ancho vive ACÁ, no en la imagen: este span sí está anclado
+                 al escenario (position:absolute dentro de la <section>), así
+                 que el % se resuelve contra el ancho del escenario. Puesto en
+                 la <img>, el % se resolvería contra un padre shrink-to-fit
+                 —cuyo ancho depende del contenido— y sería circular.
+                 10.13 % reproduce los 18vmin de 1920×1080; la nave ahora
+                 escala junto con las plataformas, igual que los nodos. */
+              className="absolute z-20 pointer-events-none w-[clamp(5rem,10.13%,22rem)]"
               style={{ left: `${currentPosition.x}%`, top: `${currentPosition.y - 3}%`, transform: "translate(-50%,-100%)" }}
             >
               <CharacterSkin
                 kind="ship"
-                className="block w-[clamp(5rem,18vmin,16rem)] animate-ship-hover"
+                className="block w-full animate-ship-hover"
                 alt="Nave de los estudiantes en el nivel actual"
                 loading="lazy"
               />
@@ -694,18 +953,55 @@ export function IslandDetailPage() {
 
               /* Image transform: delta from base (0 = as rendered). */
               const imgTransform = hasDelta ? transform3d(deltaRx, deltaRy, deltaRz, deltaScale, effPersp) : undefined;
-              /* Number transform: fixed base perspective (matches the pre-rendered
-                 image) + effective scale/perspective. No dynamic rotate deltas. */
+              /* ¿Este nodo se está mostrando APRETADO? Fuera del editor lo
+                 decide el mouse encima. Dentro del editor lo decide el toggle
+                 del panel, y sólo para el nodo seleccionado: así se puede
+                 acomodar el número del estado apretado sin tener que sostener
+                 el mouse encima mientras se usa el teclado. */
+              const pressedNow = editorOn
+                ? previewPressed && index === editorSelectedIndex
+                : !isBlocked && hoveredIndex === index;
+              /* Number 3D transform: perspective MUST be the first function (CSS
+                 rule); keep it as in the original pre-rendered image. The screen
+                 Y translation lives on a separate wrapper element (see JSX) so
+                 it runs in the un-rotated parent frame. */
               const numTransform = `perspective(${effPersp}px) rotateX(${PERSPECTIVE_BASE.rotateX}deg) rotateY(${PERSPECTIVE_BASE.rotateY}deg) rotateZ(${PERSPECTIVE_BASE.rotateZ}deg) scale(${effScale})`;
 
-              const numSize = `${2.3 * numScale}vmin`;
+              /* Tamaño del número = % del ANCHO DEL BOTÓN (cqw), no vmin. El
+                 botón declara container-type: inline-size, así que 1cqw = 1 %
+                 de su ancho y el número escala junto con él en toda
+                 resolución. 24.21 % reproduce los 2.3vmin de 1920×1080, donde
+                 el botón medía 102.6 px y el número 24.84 px. */
+              const numSize = `${(24.21 * numScale * (position.numSize ?? 1)).toFixed(2)}cqw`;
+
+              /* Corrimiento del número respecto del centro del PNG, por nivel.
+                 En cqw (% del ancho del botón), nunca en px: el centro del
+                 lienzo deja de caer sobre el centro visible del disco apenas
+                 el nodo se inclina o se agranda, y la corrección tiene que
+                 escalar junto con el botón. */
+              const numDx = position.numX ?? 0;
+              const numDy = position.numY ?? 0;
+
+              /* Posición del número con el botón apretado. Si esa isla no la
+                 definió, se usa la de reposo: el hundido genérico de abajo
+                 alcanza para la mayoría. */
+              const numHx = pressedNow ? position.numXHover ?? numDx : numDx;
+              const numHy = pressedNow ? position.numYHover ?? numDy : numDy;
+
+              /* Hundido del número al apretarse, en cqw y no en px. Era un -6/-1
+                 fijo en píxeles: el salto medía lo mismo en una Chromebook que
+                 en un monitor grande, así que el efecto se veía distinto según
+                 la pantalla. Los valores reproducen esos px a 1920×1080, donde
+                 el botón medía 102.6 px, que es la resolución de referencia de
+                 todas las conversiones de acá. */
+              const lift = pressedNow ? -0.97 : -5.85;
 
               /* State-driven visual classes for the node button. */
               const stateClass =
                 level.state === "Completado"
                   ? "drop-shadow-[0_0_8px_rgba(89,205,183,0.55)]"
                   : level.state === "Bloqueado"
-                    ? "opacity-60 saturate-50"
+                    ? "grayscale"
                     : "";
 
               return (
@@ -716,11 +1012,29 @@ export function IslandDetailPage() {
                   /* Id estable por nodo (btnisland<isla>lvl<nivel>): es el
                      CONTENEDOR de las 4 piezas (imagen normal, imagen apretada,
                      número y el pulso celeste), así seleccionarlo en la dev tool
-                     mueve/escala todo junto y genera un selector limpio. */
+                     mueve/escala todo junto y genera un selector limpio.
+
+                     NO uses "Generar CSS" del DevLayoutEditor sobre estos ids.
+                     Una regla `#btnislandNlvlM { transform: translate(…px) }`
+                     congela la posición en píxeles y se despega del arte al
+                     cambiar la resolución. La posición de un nivel es SIEMPRE
+                     un dato en src/data/levelPositions.ts, editable con el
+                     LevelPositionEditor (que copia el arreglo, no CSS). */
                   id={`btnisland${world.id.replace(/\D/g, "")}lvl${level.levelNumber}`}
                   className={[
                     "absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto",
-                    "w-[clamp(3rem,9.5vmin,9rem)] h-[clamp(3rem,9.5vmin,9rem)]",
+                    /* Tamaño = % del ESCENARIO (la <section> anclada al rect de
+                       la imagen), NO vmin. Con vmin el botón escalaba contra el
+                       viewport mientras la plataforma escalaba contra la imagen:
+                       fuera de 16:9 se despegaban (hasta −46 % en un teléfono).
+                       5.34 % reproduce los 9.5vmin de 1920×1080 y ahora queda
+                       clavado al arte en cualquier resolución. El clamp es solo
+                       una red de seguridad: mínimo táctil de 44 px, y un techo
+                       alto que en la práctica no se toca.
+                       aspect-square da el alto — un alto en % se resolvería
+                       contra la ALTURA del escenario y el botón no sería
+                       cuadrado. container-type habilita los cqw del número. */
+                    "w-[clamp(2.75rem,5.34%,14rem)] aspect-square [container-type:inline-size]",
                     "rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-sky",
                     "transition-opacity duration-150",
                     isSelected ? "animate-platform-pulse" : "",
@@ -744,34 +1058,67 @@ export function IslandDetailPage() {
                     className="absolute inset-0"
                     style={hasDelta ? { transform: imgTransform } : undefined}
                   >
+                    {/* Botón propio de la isla si lo tiene, básico si no
+                        (ver levelButtonFor en utils/assets).
+
+                        Los dos estados están SIEMPRE en el DOM, superpuestos, y
+                        lo que cambia es la opacidad: así el cambio es un cruce
+                        y no un corte. Con `hidden` el navegador además tenía
+                        que decodificar el apretado recién al pasar el mouse, y
+                        el primer hover de cada botón parpadeaba. */}
                     <img
-                      className={`w-full h-full object-contain ${!editorOn && hoveredIndex === index ? "hidden" : ""}`}
-                      src={assets.levelButton}
+                      className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ease-out motion-reduce:transition-none"
+                      style={{ opacity: pressedNow ? 0 : 1 }}
+                      src={levelButtonFor(world.id)}
                       alt=""
                       decoding="async"
                       draggable={false}
                     />
                     <img
-                      className={`w-full h-full object-contain ${!editorOn && hoveredIndex === index ? "" : "hidden"}`}
-                      src={assets.levelButtonPressed}
+                      className="absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ease-out motion-reduce:transition-none"
+                      style={{ opacity: pressedNow ? 1 : 0 }}
+                      src={levelButtonFor(world.id, true)}
                       alt=""
                       decoding="async"
                       draggable={false}
                     />
                   </span>
 
-                  {/* Number layer: fixed base perspective + scale. */}
-                  <span className="absolute inset-0 flex items-center justify-center" style={{ transform: numTransform }}>
-                    <span
-                      className={[
-                        "font-display font-black select-none",
-                        isCompleted ? "text-mint" : "",
-                        isBlocked ? "text-muted" : "",
-                        !isCompleted && !isBlocked ? "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" : "",
-                      ].filter(Boolean).join(" ")}
-                      style={{ fontSize: numSize }}
-                    >
-                      {level.levelNumber}
+                  {/* Capa del número: primero el corrimiento en pantalla y
+                      después el span con la perspectiva 3D, que tiene que
+                      conservar perspective() como primera función.
+
+                      Todo va en cqw — % del ancho del botón — incluido el
+                      hundido al apretarse, para que acompañe al botón en
+                      cualquier resolución.
+
+                      La transición se apaga con el editor abierto: si no, cada
+                      flechazo para acomodar el número arrastra 200 ms de
+                      animación y el ajuste fino se vuelve imposible de leer. */}
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${editorOn ? "" : "transition-transform duration-200 ease-out motion-reduce:transition-none"}`}
+                    style={{ transform: `translate(${numHx}cqw, ${numHy + lift}cqw)` }}
+                  >
+                    <span style={{ transform: numTransform }}>
+                      {/* Sin completar el número va blanco, que es lo que más
+                          contrasta contra cualquier disco. Completado lleva el
+                          color propio de esa isla — derivado del disco de SU
+                          botón, ver levelNumberDoneColor en utils/assets. La
+                          sombra va en los dos casos: es lo que despega el
+                          número del arte cuando el disco tiene degradé. */}
+                      <span
+                        className={[
+                          "font-display font-black select-none",
+                          isBlocked ? "text-muted" : "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]",
+                          !isCompleted && !isBlocked ? "text-white" : "",
+                        ].filter(Boolean).join(" ")}
+                        style={{
+                          fontSize: numSize,
+                          ...(isCompleted && !isBlocked ? { color: levelNumberDoneColor(world.id) } : {}),
+                        }}
+                      >
+                        {level.levelNumber}
+                      </span>
                     </span>
                   </span>
 
@@ -787,10 +1134,8 @@ export function IslandDetailPage() {
                     </span>
                   )}
                   {isCompleted && (
-                    <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-0.5 text-yellow-400 drop-shadow-sm">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <Star key={i} size={14} fill={i < level.stars ? "currentColor" : "none"} />
-                      ))}
+                    <span className="absolute -bottom-3.5 left-1/2 -translate-x-1/2">
+                      <LevelStars earned={level.stars} size={17} gap={1.5} />
                     </span>
                   )}
 
@@ -808,22 +1153,30 @@ export function IslandDetailPage() {
                 Opens on tap, closes on tap-outside. Hidden while editing. */}
             {!editorOn && popoverOpen && (
               <div
+                ref={popoverRef}
                 data-level-popover=""
-                className="absolute z-30 pointer-events-auto animate-popover-in"
+                className="absolute z-50 pointer-events-auto"
                 style={{
                   left: `${selectedPos.x}%`,
                   top: `${selectedPos.y}%`,
-                  transform: `translate(${popoverTx}, ${popoverTy})`,
+                  /* Base anchor (rem/%) + the collision nudge (px). The pop-in
+                     animation lives on the INNER panel, so it never overrides
+                     this transform — otherwise the clamp could never settle. */
+                  transform: `translate(calc((${popoverTx}) + ${popoverNudge.dx}px), calc((${popoverTy}) + ${popoverNudge.dy}px))`,
                 }}
               >
-                <div className="glass-card p-4 rounded-2xl min-w-[14rem] relative">
+                <div
+                  className="animate-popover-in p-4 rounded-2xl min-w-[14rem] relative backdrop-blur-xl border border-white/70 shadow-[0_20px_50px_rgba(40,70,120,0.28)]"
+                  style={{ background: "rgba(255,255,255,0.9)" }}
+                >
                   {/* Tail — rotated square pointing toward the node */}
                   <span
                     className={[
-                      "absolute w-3 h-3 glass-card rotate-45",
+                      "absolute w-3 h-3 rotate-45 border border-white/70",
                       popoverRight ? "-left-1.5" : "-right-1.5",
                       popoverVBand === "top" ? "top-3" : popoverVBand === "bottom" ? "bottom-3" : "top-1/2 -translate-y-1/2",
                     ].filter(Boolean).join(" ")}
+                    style={{ background: "rgba(255,255,255,0.9)" }}
                     aria-hidden="true"
                   />
                   <div className="flex items-center justify-between gap-2 mb-1">
@@ -833,10 +1186,8 @@ export function IslandDetailPage() {
                     </span>
                   </div>
                   <h3 className="text-sm text-muted mb-2">{selectedLevel.name}</h3>
-                  <span className="flex gap-0.5 text-yellow-400 mb-3" aria-hidden="true">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Star key={i} size={15} fill={i < selectedLevel.stars ? "currentColor" : "none"} />
-                    ))}
+                  <span className="block mb-3">
+                    <LevelStars earned={selectedLevel.stars} size={19} gap={2} />
                   </span>
                   <Button className="w-full" onClick={openLevel}>
                     {selectedLevel.state === "Bloqueado" ? (
@@ -851,6 +1202,7 @@ export function IslandDetailPage() {
               </div>
             )}
           </section>
+        </div>
         </div>
       </div>
 
@@ -868,8 +1220,14 @@ export function IslandDetailPage() {
       <StarCounter className="fixed top-4 right-4 z-30" />
 
       {/* Barra ÉPICA de progreso al próximo personaje — abajo-centro, igual
-          que en el mapa de mundos (pointer-events-none: no tapa los niveles). */}
-      <SkinProgressBar />
+          que en el mapa de mundos (pointer-events-none: no tapa los niveles).
+          Se desvanece cuando hay un popover de nivel abierto para que los dos
+          paneles de vidrio NUNCA se superpongan abajo (antes el popover de los
+          niveles de la fila inferior quedaba escondido detrás de esta barra y
+          parecía que el nivel "no se podía entrar"). */}
+      <SkinProgressBar
+        className={`transition-opacity duration-200 ${popoverOpen ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+      />
 
       {/* Celebración al desbloquear una fase de personaje nueva — acá es donde
           el alumno aterriza con "Volver" justo después de cruzar el umbral. */}
@@ -889,7 +1247,14 @@ export function IslandDetailPage() {
 
       {/* Compact floating island header — sits in the top-safe area and never
           covers the level nodes. Replaces the old large title/progress panel. */}
-      <header className="fixed top-0 left-1/2 -translate-x-1/2 z-20 glass-strong rounded-b-2xl px-5 py-3 flex items-center gap-4 shadow-card animate-hud-in max-w-[92vw]">
+      <header
+        className="fixed top-0 left-1/2 -translate-x-1/2 z-20 glass-strong rounded-b-2xl px-5 py-3 flex items-center gap-4 shadow-card animate-hud-in max-w-[92vw]"
+        /* Mismo fondo blanco OPACO que la barra de personaje de abajo, para que
+           ambos paneles tengan EXACTAMENTE el mismo color sin importar el arte
+           que tengan detrás (antes el de arriba dejaba pasar el cielo azul y el
+           de abajo las nubes blancas, y se veían de distinto color). */
+        style={{ background: "rgba(255,255,255,0.88)" }}
+      >
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-700 font-bold text-[clamp(0.95rem,1.7vmin,1.3rem)] whitespace-nowrap">
           <Star size={15} fill="currentColor" />
           Mundo {worldNumber}

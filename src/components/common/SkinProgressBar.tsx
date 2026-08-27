@@ -169,8 +169,13 @@ export function SkinProgressBar({ className = "" }: { className?: string }) {
           </span>
         ))}
 
-        {/* Panel principal de vidrio. */}
-        <div className="glass-card skin-bar-panel relative flex items-center gap-3 sm:gap-4 rounded-[1.75rem] px-3.5 py-3 sm:px-5 sm:py-4 border border-white/60 overflow-hidden">
+        {/* Panel principal de vidrio. Fondo blanco OPACO fijo (no translúcido)
+            para que el color del panel NO cambie según el arte que tiene detrás
+            y coincida exactamente con el header de arriba en cualquier isla. */}
+        <div
+          className="glass-card skin-bar-panel relative flex items-center gap-3 sm:gap-4 rounded-[1.75rem] px-3.5 py-3 sm:px-5 sm:py-4 border border-white/60 overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.88)" }}
+        >
           {/* Brillo superior que recorre el panel en loop (estilo marca). */}
           <span
             className="absolute inset-x-0 top-0 h-px animate-route-shimmer pointer-events-none"

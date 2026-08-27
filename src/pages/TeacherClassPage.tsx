@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, BookOpen, GraduationCap, Home, KeyRound, Power, PowerOff, Users } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Toast } from "../components/common/Toast";
@@ -37,6 +37,7 @@ export function TeacherClassPage() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [version, setVersion] = useState(0);
+  const toggleGridRef = useRef<HTMLElement>(null);
 
   /* Scope: a teacher can only open a class they teach. localStorage path. */
   const classes = useMemo(() => getClassesForTeacher(user), [user]);
@@ -117,11 +118,20 @@ export function TeacherClassPage() {
     setEnabled(new Set(updated));
     setMessage(next ? "Nivel habilitado para el curso." : "Nivel deshabilitado para el curso.");
   }
-  function resetPw(s: EduTicUser) {
-    const pw = resetUserPassword(s.id);
-    if (pw) {
-      setMessage(`Clave temporal de ${s.name}: ${s.username} / ${pw}`);
-      setVersion((v) => v + 1);
+  async function resetPw(s: EduTicUser) {
+    if (usingApi) {
+      try {
+        const res = await api.resetUserPassword(s.id);
+        setMessage(`Clave temporal de ${s.name}: ${s.username} / ${res.temporaryPassword}`);
+      } catch {
+        setMessage("No se pudo restablecer la contraseña.");
+      }
+    } else {
+      const pw = resetUserPassword(s.id);
+      if (pw) {
+        setMessage(`Clave temporal de ${s.name}: ${s.username} / ${pw}`);
+        setVersion((v) => v + 1);
+      }
     }
   }
 
@@ -162,7 +172,7 @@ export function TeacherClassPage() {
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard icon={Users} label="Alumnos" value={students.length} tone="pink" />
-        <KpiCard icon={BookOpen} label="Niveles habilitados" value={`${enabled.size}/${worlds.length}`} tone="violet" />
+        <KpiCard icon={BookOpen} label="Niveles habilitados" value={`${enabled.size}/${worlds.length}`} tone="violet" onClick={() => toggleGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
         <KpiCard icon={GraduationCap} label="Precisión promedio" value={`${avg}%`} tone="blue" />
       </div>
 
@@ -226,7 +236,7 @@ export function TeacherClassPage() {
       </section>
 
       {/* Island toggle grid */}
-      <section className="glass-card p-6 flex flex-col gap-4">
+      <section ref={toggleGridRef} className="glass-card p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="font-display text-xl font-bold text-text flex items-center gap-2">
@@ -244,7 +254,7 @@ export function TeacherClassPage() {
                 className={`glass-surface flex flex-col overflow-hidden animate-card-in ${!isOn ? "opacity-60" : ""}`}
               >
                 <div className="relative h-28 overflow-hidden bg-accent-sky/10">
-                  <img src={world.thumbnail} alt="" decoding="async" loading="lazy" className="w-full h-full object-cover" />
+                  <img src={world.background} alt="" decoding="async" loading="lazy" className="w-full h-full object-cover" />
                   <span className="absolute top-2 left-2 text-xs font-bold px-2 py-0.5 rounded-full bg-white/60 text-text">
                     #{world.order}
                   </span>
