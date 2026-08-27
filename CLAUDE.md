@@ -416,19 +416,22 @@ the combined art's aspect ratio to the island layer's. Every `x/y` in that
 island's `levelPositions.ts` entry has to be placed again. Split the art
 *before* positioning the nodes, never after.
 
-**Some art is drawn to bleed, not to float.** `.island-stage` normally uses the
-CSS form of `contain` (`width: min(100cqw, 100cqh * var(--art-ar))`): the art
-always enters whole, with letterbox bands if the aspect ratio doesn't match.
-Island 6 is painted edge-to-edge on purpose — its border is a hard cut that
-assumes more scene continues off-camera, with no breathing margin — so shrinking
-it to fit would expose that cut. `{ cover: true }` on its row in `ISLAND_ART`
-switches the stage to `.island-stage--cover`, the same formula with `max()`
-instead of `min()`: the stage always fills the viewport and *never* shrinks
-below it, cropping whatever doesn't fit. `islandArt(worldId).cover` carries the
-flag to `IslandDetailPage`, which toggles the class. Level nodes still measure
-in % of that box, so at some aspect ratios a node can land outside the visible
-crop — expected with this mode, not a bug. Use it only for art drawn with that
-intent; every other island should stay `contain`.
+**Some art is drawn to bleed, not to float — an escape hatch, not in use today.**
+`.island-stage` normally uses the CSS form of `contain`
+(`width: min(100cqw, 100cqh * var(--art-ar))`): the art always enters whole,
+with letterbox bands if the aspect ratio doesn't match. If an island's border is
+ever a hard cut that assumes more scene continues off-camera — no breathing
+margin, meant to bleed — shrinking it to fit would expose that cut. For that
+case only, `{ cover: true }` on its row in `ISLAND_ART` switches the stage to
+`.island-stage--cover`, the same formula with `max()` instead of `min()`: the
+stage always fills the viewport and *never* shrinks below it, cropping whatever
+doesn't fit. `islandArt(worldId).cover` carries the flag to `IslandDetailPage`,
+which toggles the class. Level nodes still measure in % of that box, so at some
+aspect ratios a node can land outside the visible crop — expected with this
+mode, not a bug. Island 6 briefly used it while its art had that hard cut; a
+redrawn, complete version replaced it and it went back to `contain`. Reach for
+`cover` only when an island's art is genuinely drawn that way — a complete
+island, however busy, still wants `contain`.
 
 **To split one**, drop two sources into `Images/islands/islandN/` and run the
 importer:
