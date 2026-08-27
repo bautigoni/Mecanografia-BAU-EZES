@@ -32,7 +32,7 @@ Mandale a nanobanana el prompt de abajo **junto con la imagen de referencia**
 trae los dos estados lado a lado, que es justo el formato que se pide de
 vuelta: el modelo tiene un molde literal que copiar en vez de una descripción.
 
-No mandes `btn-default.png` suelto: es sólo el estado libre, y sin ver el
+No mandes el botón `_default` suelto: es sólo el estado libre, y sin ver el
 apretado el modelo se inventa cómo se hunde el disco.
 
 En el prompt, reemplazá el bloque `TEMA` por el de la isla nueva.
@@ -65,7 +65,8 @@ TEMA: <material de la base> / <color del disco central> / <decoración que le
 pega al terreno de la isla>
 ```
 
-Guardá el resultado acá, en `Images/level-buttons/`, como `btn-islandN.png`.
+Guardá el resultado en la carpeta de esa isla, `Images/islands/islandN/`, como
+`button-sheet.png`.
 
 **Pedí PNG.** Con JPG anda igual, pero deja halo de compresión alrededor del
 fondo y el recorte queda más sucio. La isla 2 vino en JPG y se nota.
@@ -82,13 +83,13 @@ isla 8: perdió la parte más pálida de su manto de nieve.
 ## 2. Medir la lámina
 
 ```bash
-node scripts/measure-button-sheet.mjs Images/level-buttons/btn-island16.png
+node scripts/measure-button-sheet.mjs Images/islands/island16/button-sheet.png
 ```
 
 Devuelve algo así:
 
 ```
-Images/level-buttons/btn-island16.png  1638x640   fondo rgb(255,255,255)
+Images/islands/island16/button-sheet.png  1638x640   fondo rgb(255,255,255)
 estados detectados: 2  [[100,737],[906,1543]]
 gap sugerido: 806
   [0] x 100..737  y 120..515  alto 396  ancho 638  centroX 418.5
@@ -112,7 +113,7 @@ De acá salen el **recorte** `[x, y, ancho, alto]` del estado libre y el **gap**
 ## 3. Medir la base — el paso a ojo
 
 ```bash
-node scripts/grid-button.mjs Images/level-buttons/btn-island16.png 100 120 638 396 .tmp/grid.png
+node scripts/grid-button.mjs Images/islands/island16/button-sheet.png 100 120 638 396 .tmp/grid.png
 ```
 
 (los cuatro números son el recorte del paso anterior)
@@ -156,7 +157,7 @@ la 12 (12 px) y la 1 (21 px).
 Agregá la línea a la tabla `SHEETS` de `scripts/import-level-button.mjs`:
 
 ```js
-island16: { file: "btn-island16.png", crop: [100, 120, 638, 396], gap: 806,
+island16: { crop: [100, 120, 638, 396], gap: 806,
             base: { cx: 340, cy: 246, w: 549 } },
 ```
 
@@ -172,7 +173,8 @@ Sale algo así:
 island16  escala 0.827  base 454 px (referencia 454)  dibujo 528x327 en 18,11
 ```
 
-Deja los dos WebP en `public/assets/level-buttons/`.
+Deja los dos WebP en `public/assets/islands/islandN/`, como `button.webp` y
+`button-pressed.webp`.
 
 ### Verificar el centrado
 
@@ -198,10 +200,10 @@ color del fondo se las come — con la nieve de la isla 8 le arrancaba pedazos.
 En `src/utils/assets.ts`, agregá la línea a `LEVEL_BUTTON_BY_WORLD`:
 
 ```ts
-island16: `${LEVEL_BUTTONS_DIR}/btn-island16`,   // <tema en una línea>
+island16: {},               // <tema en una línea>
 ```
 
-Una isla que no figure ahí cae al botón de piedra sin decorar (`btn-default`).
+Una isla que no figure ahí cae al botón de piedra sin decorar (`_default`).
 Eso ya no es el estado normal de nadie: queda como red de seguridad.
 
 Después, `npm run build`.
@@ -216,7 +218,7 @@ El número es blanco. Si el disco quedó claro, no se lee. Medilo:
 node -e "
 const sharp=require('sharp');
 const lin=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)};
-sharp('public/assets/level-buttons/btn-island16.webp').ensureAlpha().raw()
+sharp('public/assets/islands/island16/button.webp').ensureAlpha().raw()
  .toBuffer({resolveWithObject:true}).then(({data,info})=>{
   const W=info.width,C=4;let r=0,g=0,b=0,n=0;
   for(let y=165;y<=265;y++)for(let x=255;x<=345;x++){const i=(y*W+x)*C;
@@ -286,11 +288,11 @@ lienzo, y más `scale` va a necesitar esa isla.
 | Archivo | Qué hace |
 |---|---|
 | `REFERENCIA-boton-clasico.png` | La referencia que va con el prompt |
-| `btn-islandN.png` | La lámina cruda tal como vino. **No se toca** |
+| `Images/islands/islandN/button-sheet.png` | La lámina cruda tal como vino. **No se toca** |
 | `scripts/measure-button-sheet.mjs` | Recorte y gap; verifica que los dos estados coincidan |
 | `scripts/grid-button.mjs` | Grilla de % para medir la base a ojo |
 | `scripts/import-level-button.mjs` | Tabla de medidas + recorte de fondo + encuadre → WebP |
 | `scripts/lighten-disc.mjs` | Aclara u oscurece sólo el disco central |
 | `src/utils/assets.ts` | `LEVEL_BUTTON_BY_WORLD`: qué isla usa qué botón |
-| `public/assets/level-buttons/` | Los WebP que consume el juego |
-| `public/assets/level-buttons/_backups/` | Originales antes de aclarar/oscurecer |
+| `public/assets/islands/islandN/button[-pressed].webp` | Los WebP que consume el juego |
+| `public/assets/islands/_backups/` | Originales antes de aclarar/oscurecer |

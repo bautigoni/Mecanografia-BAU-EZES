@@ -308,7 +308,63 @@ Key responsive rules in that section:
 - **Island detail:** back/profile become icon-only, compact HUD, no collision.
 - **Logros:** the 4-column reward grid collapses to 2×2.
 
-### 6.3 Level buttons — one themed button per island
+### 6.3 Island art — one folder per island
+
+**Everything an island draws lives in that island's folder, and the path is
+built from its `worldId`.** There is no index, no parallel array, no lookup
+table to keep in order:
+
+```
+public/assets/islands/islandN/     ← shipped, WebP only
+  sky.webp             the background, no platforms
+  island.webp          the island cut out, with alpha (only once split)
+  map.webp             the thumbnail on the world map
+  gameplay.webp        the scene behind the keyboard
+  button.webp          level button, free
+  button-pressed.webp  level button, pressed
+  ui/                  level interface (not built yet)
+
+Images/islands/islandN/            ← sources, never shipped
+  scene-source.png, button-sheet.png, map-hi.webp, …
+
+public/assets/islands/_default/    ← fallback button for a world with no art yet
+public/assets/islands/_backups/    ← pre-colour-pass originals (gitignored)
+```
+
+Resolution goes through `islandArt()`, `islandMapThumb()`,
+`islandGameplayBg()` and `levelButtonFor()` in `src/utils/assets.ts`. The only
+table left is `ISLAND_ART`, one row per island, and the only thing a row can
+say is whether that island's art is already split.
+
+**Why this replaced what was there.** The art used to be spread across five
+folders (`typely_islands_webp`, `typely_islands_thumb_webp`,
+`typely_backgrounds_webp`, `typely_gameplay_background_webp`,
+`assets/edutic-art/`), addressed by three parallel arrays indexed by an
+"expansion index" that was offset by five from the world number. Island 6's
+thumbnail was a file named `background-island1.webp`. Nothing in the name told
+you that; you had to know. Worlds 1-5 went down a second code path entirely.
+Building the path from the `worldId` makes the offset unrepresentable.
+
+**The two layers, and why they exist.** `sky` fills the whole screen with
+`object-fit: cover` and may crop freely — nothing is positioned on it.
+`island` goes in the stage box, which is sized to the island's own aspect
+ratio and *contained*, so it always fits whole; the percentages in
+`levelPositions.ts` are measured against that box. While an island is not yet
+split, `islandArt().island` is `null`, `sky.webp` is still the combined
+painting, and the page reuses it blurred behind itself to fill the letterbox
+bands — a stopgap, not the design.
+
+**Splitting an island changes its coordinate system.** The stage box goes from
+the combined art's aspect ratio to the island layer's. Every `x/y` in that
+island's `levelPositions.ts` entry has to be placed again. Split the art
+*before* positioning the nodes, never after.
+
+**To split one:** drop `island.webp` (alpha, trimmed) and `sky.webp` into
+`public/assets/islands/islandN/`, then add `split: true` to that island's row
+in `ISLAND_ART`. Command-line scripts do not read that flag — `scripts/island-paths.mjs`
+infers it from whether `island.webp` exists on disk, so the two can never drift.
+
+### 6.4 Level buttons — one themed button per island
 
 The node the kid presses is not one shared graphic. **Each of the 15 islands has
 its own button**, redesigned in the material of its terrain: stone with grass on
@@ -329,11 +385,11 @@ on the canvas; if they differ the button jumps under the cursor.
 
 | Where | What | Tracked |
 |---|---|---|
-| `Images/level-buttons/btn-islandN.png` | the raw two-state sheet exactly as generated | yes, never edited |
-| `Images/level-buttons/LEEME.md` | the full recipe for adding a new island's button | yes |
-| `Images/level-buttons/REFERENCIA-boton-clasico.png` | the shape reference that goes with the generation prompt | yes |
-| `public/assets/level-buttons/btn-islandN[-pressed].webp` | what the game loads | yes |
-| `public/assets/level-buttons/_backups/` | originals kept before a colour pass | gitignored |
+| `Images/islands/islandN/button-sheet.png` | the raw two-state sheet exactly as generated | yes, never edited |
+| `Images/islands/BOTONES.md` | the full recipe for adding a new island's button | yes |
+| `Images/islands/_default/REFERENCIA-boton-clasico.png` | the shape reference that goes with the generation prompt | yes |
+| `public/assets/islands/islandN/button[-pressed].webp` | what the game loads | yes |
+| `public/assets/islands/_backups/` | originals kept before a colour pass | gitignored |
 
 Sheets are never edited by hand. `scripts/import-level-button.mjs` holds a table
 of per-island measurements and produces both WebP in one run; re-running it
@@ -373,7 +429,7 @@ island 1 is the exception and goes dark, because its disc is the one pale enough
 that white itself only reaches 2.80:1 — the completed colour is what makes that
 island legible.
 
-**Adding an island's button:** follow `Images/level-buttons/LEEME.md`. One step
+**Adding an island's button:** follow `Images/islands/BOTONES.md`. One step
 in it is deliberately manual — measuring the base on a percentage grid — and the
 file explains why it cannot be automated: decoration spills outside the
 footprint asymmetrically and is painted in the same material as the base, so
@@ -450,13 +506,19 @@ touchpad, windows, tabs, shortcuts, text editing, UI literacy). `SkillLevelView`
 - `api/src/` — `server.ts`, `auth.ts`, `rbac.ts`, `seed.ts`, `db/{index,schema}.ts`,
   `routes/{auth,users,sedes,progress,import}.ts`.
 - `db/init/` — `001_schema.sql`, `002_partitions.sql`.
-- `public/assets/edutic-art/` — web-safe image copies used by the app.
+- `public/assets/islands/islandN/` — **all the art of one island, together**:
+  sky, island, map thumbnail, gameplay scene and level button. Path built from
+  the `worldId`; see §6.3.
+- `public/assets/edutic-art/` — everything that is NOT an island: mascots,
+  ships, skins, login and home backgrounds.
+- `Images/islands/islandN/` — the sources of that island (sheets, PNGs, hi-res),
+  mirroring the shipped folder. Never published.
 - `Images/`, `Images-new/` — **original source art (never modified).**
 
 ## 10. Asset Pipeline
 
 Originals in `Images/` and `Images-new/` are **never** modified. Web copies live
-in `public/assets/edutic-art/` and are produced by the Python helpers
+in `public/assets/` and are produced by the Python helpers
 (`Images-new/process_mecano.py` for mascots/favicons, `process_ships.py` for
 ships): verify alpha, **trim transparent padding**, downscale to a 1024px longest
 edge.
@@ -468,10 +530,14 @@ edge.
   original and re-run the scripts; keep the web copy trimmed.
 - One-off image edits may use `npx`/Node `sharp` (installed `--no-save`). Local
   asset backups live in `_backups/` (gitignored, not shipped).
+- **Island art has its own layout**: one folder per island, path built from the
+  `worldId`, sources mirrored under `Images/islands/`. See §6.3 — it is the
+  rule for every image an island draws, and it replaced five scattered folders
+  addressed by offset indexes.
 - **Level buttons have their own pipeline** and do not go through the Python
-  helpers: raw two-state sheets in `Images/level-buttons/`, turned into the
-  shipped WebP by `scripts/import-level-button.mjs`. See §6.3 for the geometry
-  contract and `Images/level-buttons/LEEME.md` for the step-by-step recipe.
+  helpers: raw two-state sheets in `Images/islands/islandN/`, turned into the
+  shipped WebP by `scripts/import-level-button.mjs`. See §6.4 for the geometry
+  contract and `Images/islands/BOTONES.md` for the step-by-step recipe.
 
 ## 11. Mascots — Where They Appear
 

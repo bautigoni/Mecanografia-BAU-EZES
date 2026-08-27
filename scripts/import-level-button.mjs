@@ -53,8 +53,7 @@ const SHEETS = {
   island11: { file: "btn-island11.png", crop: [41, 231, 462, 336], gap: 492, base: { cx: 232, cy: 190, w: 433 } },
 };
 
-const SRC_DIR = "Images/level-buttons";
-const OUT_DIR = "public/assets/level-buttons";
+import { carpetaDe, laminaDe } from "./island-paths.mjs";
 const MARGIN = 0.98;      // deja un pelo de aire contra el borde del lienzo
 
 /** Fondo -> alfa, por inundación desde el borde.
@@ -177,12 +176,12 @@ async function importOne(id) {
 
   /* El color del fondo se mide sobre la LÁMINA ENTERA: los recortes van
      pegados al dibujo, así que su propio borde ya es arte. */
-  const hoja = await sharp(`${SRC_DIR}/${s.file}`).flatten({ background: "#ffffff" })
+  const hoja = await sharp(laminaDe(id)).flatten({ background: "#ffffff" })
     .raw().toBuffer({ resolveWithObject: true });
   const fondo = colorDeFondo(hoja.data, hoja.info.width, hoja.info.height, hoja.info.channels);
 
   for (const [k, suffix] of [[0, ""], [1, "-pressed"]]) {
-    const { data, info } = await sharp(`${SRC_DIR}/${s.file}`)
+    const { data, info } = await sharp(laminaDe(id))
       .flatten({ background: "#ffffff" })
       .extract({ left: cx0 + k * s.gap, top: cy0, width: cw, height: ch })
       .raw().toBuffer({ resolveWithObject: true });
@@ -206,7 +205,7 @@ async function importOne(id) {
         background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
       .webp({ quality: 92, alphaQuality: 100 })
-      .toFile(`${OUT_DIR}/btn-${id}${suffix}.webp`);
+      .toFile(`${carpetaDe(id)}/button${suffix}.webp`);
   }
   console.log(
     `${id.padEnd(9)} escala ${scale.toFixed(3)}  base ${Math.round(s.base.w * scale)} px ` +

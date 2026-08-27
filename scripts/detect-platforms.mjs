@@ -20,7 +20,7 @@
  *   node scripts/detect-platforms.mjs <imagen> "x,y;x,y" [tolerancia] [areaMin]
  *
  * Ejemplo:
- *   node scripts/detect-platforms.mjs public/assets/edutic-art/island2.webp "49,75;32,49"
+ *   node scripts/detect-platforms.mjs public/assets/islands/island2/sky.webp "49,75;32,49"
  *
  * OJO: el match por color pierde la parte sombreada de abajo del disco, asi
  * que el centro sale hasta ~1 % alto. Verificar siempre con
