@@ -25,6 +25,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { arteDe } from "./island-paths.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -37,25 +38,10 @@ try {
 }
 
 /* ── Mundo → arte que ancla los nodos ────────────────────────────────────
-   Ojo: island1 NO usa island1.webp. IslandDetailPage lo sobreescribe con su
-   PNG suelto (ISLAND_IMG), que es 4:3 y es el que define sus coordenadas. */
-const ART = {
-  island1: "public/assets/edutic-art/islands/1/island.png",
-  island2: "public/assets/edutic-art/island2.webp",
-  island3: "public/assets/edutic-art/island3.webp",
-  island4: "public/assets/edutic-art/island4.webp",
-  island5: "public/assets/edutic-art/island5.webp",
-  island6: "public/typely_backgrounds_webp/bg01_crystal_portal.webp",
-  island7: "public/typely_backgrounds_webp/bg02_garden_library.webp",
-  island8: "public/typely_backgrounds_webp/bg03_frozen_clockwork.webp",
-  island9: "public/typely_backgrounds_webp/bg04_autumn_artist.webp",
-  island10: "public/typely_backgrounds_webp/bg05_jungle_ruins.webp",
-  island11: "public/typely_backgrounds_webp/bg06_candyland.webp",
-  island12: "public/typely_backgrounds_webp/bg07_desert_canyon.webp",
-  island13: "public/typely_backgrounds_webp/bg08_rainbow_playground.webp",
-  island14: "public/typely_backgrounds_webp/bg09_alchemy_lab.webp",
-  island15: "public/typely_backgrounds_webp/bg10_lagoon.webp",
-};
+   Sale de island-paths.mjs, que lo deduce del disco: la capa recortada de la
+   isla si ya está separada, y si no la escena entera. Ojo con el aspecto —
+   una isla separada no tiene por qué ser 16:9, y sus coordenadas se miden
+   contra ESA caja. */
 
 /** Diámetro del nodo como % del ancho del escenario (IslandDetailPage). */
 const NODE_PCT = 5.34;
@@ -246,7 +232,7 @@ const islands = wanted.length ? wanted : Object.keys(ART);
 fs.mkdirSync(outDir, { recursive: true });
 
 for (const isla of islands) {
-  const rel = ART[isla];
+  const rel = arteDe(isla);
   if (!rel) { console.error(`  ${isla}: sin arte mapeado`); continue; }
   const src = path.join(ROOT, rel);
   if (!fs.existsSync(src)) { console.error(`  ${isla}: no existe ${rel}`); continue; }

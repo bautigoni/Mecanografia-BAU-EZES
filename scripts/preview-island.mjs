@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import fs from "fs";
+import { arteDe, botonDe } from "./island-paths.mjs";
 
 /* Compone los nodos de una isla sobre su arte real, con el botón propio de esa
    isla, sin abrir la app. Sirve para ver de un vistazo cuáles quedaron sobre su
@@ -17,18 +18,9 @@ import fs from "fs";
 const NODE_PCT = 5.34;          // el nodo mide 5.34 % del ancho del escenario
 const OUT_DIR = ".preview-niveles";
 
-/* Arte de fondo de cada isla — el mismo que usa IslandDetailPage. */
-const EXPANSION = [
-  "bg01_crystal_portal", "bg02_garden_library", "bg03_frozen_clockwork",
-  "bg04_autumn_artist", "bg05_jungle_ruins", "bg06_candyland",
-  "bg07_desert_canyon", "bg08_rainbow_playground", "bg09_alchemy_lab",
-  "bg10_lagoon",
-];
-function arteDe(n) {
-  if (n === 1) return "public/assets/edutic-art/islands/1/island.png";
-  if (n <= 5) return `public/assets/edutic-art/island${n}.webp`;
-  return `public/typely_backgrounds_webp/${EXPANSION[n - 6]}.webp`;
-}
+/* El arte que ancla los nodos sale de island-paths.mjs, que lo deduce del
+   disco: si la isla ya está separada usa su capa recortada, y si no, la
+   escena entera. Es la misma regla que aplica IslandDetailPage. */
 
 /* Lee el arreglo de una isla de levelPositions.ts sin parsear TypeScript. */
 const fuente = fs.readFileSync("src/data/levelPositions.ts", "utf8");
@@ -53,7 +45,7 @@ function nivelesDe(id) {
 
 async function render(n) {
   const id = `island${n}`;
-  const art = arteDe(id === "island1" ? 1 : n);
+  const art = arteDe(id);
   if (!fs.existsSync(art)) { console.log(`${id.padEnd(9)} sin arte (${art})`); return; }
 
   const nodos = posicionesDe(id);
@@ -61,7 +53,7 @@ async function render(n) {
   const base = sharp(art);
   const { width: W, height: H } = await base.metadata();
   const caja = Math.round((W * NODE_PCT) / 100);
-  const btn = `public/assets/level-buttons/btn-${id}.webp`;
+  const btn = botonDe(id);
   const capas = [];
 
   for (let i = 0; i < nodos.length; i++) {

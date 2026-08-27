@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { botonDe } from "./island-paths.mjs";
 
 /* Color del número para un nivel COMPLETADO, uno por isla.
    ---------------------------------------------------------------------
@@ -144,7 +145,7 @@ function colorCompletado(fondo) {
 const filas = [];
 for (let n = 1; n <= 15; n++) {
   const id = `island${n}`;
-  const fondo = await fondoDelNumero(`public/assets/level-buttons/btn-${id}.webp`);
+  const fondo = await fondoDelNumero(botonDe(id));
   const elegido = colorCompletado(fondo);
   filas.push({ id, fondo, color: hex(elegido.rgb), nombre: elegido.nombre, k: elegido.k, blanco: contraste([255, 255, 255], fondo) });
 }

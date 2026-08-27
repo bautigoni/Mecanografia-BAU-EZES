@@ -31,7 +31,7 @@
  * (0.92 por defecto: el botón llena el anillo dejando un hilo de piedra).
  *
  * Ejemplo:
- *   node scripts/measure-pedestal.mjs public/assets/edutic-art/island2.webp "49.4,75.1;33.4,66.3"
+ *   node scripts/measure-pedestal.mjs public/assets/islands/island2/sky.webp "49.4,75.1;33.4,66.3"
  *
  * Necesita sharp:  npm install sharp --no-save
  */

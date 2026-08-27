@@ -1,6 +1,6 @@
 import { activitiesByWorld, type Activity } from "./activities";
 import { islandLevelLayouts, type LevelPosition } from "./levelPositions";
-import { assets, expansionIslandThumbs, islandDetailBackgrounds, gameplayBackgrounds } from "../utils/assets";
+import { islandArt, islandGameplayBg, islandMapThumb } from "../utils/assets";
 import {
   getBestStarsForLevel,
   getTotalStars,
@@ -14,34 +14,6 @@ import {
 } from "../utils/progress";
 import { getVisibleWorldIds, type UserContext } from "../utils/userContext";
 
-/* =====================================================================
-   GAMEPLAY BACKGROUND MAPPING.
-   - Original worlds 1-5 KEEP their single original painted gameplay scene
-     (assets.gameplayBg). They are NOT remapped to the new folder.
-   - New worlds 6-15 each get their theme-matched gameplay scene from
-     /typely_gameplay_background_webp, by expansion index (0→island6 …
-     9→island15), which lines up 1:1 with their thumbnail + detail theme.
-   worldId -> gameplay background file
-===================================================================== */
-const GAMEPLAY_BACKGROUND_BY_WORLD: Record<Activity["worldId"], string> = {
-  // Originals — preserved.
-  island1: assets.gameplayBg,
-  island2: assets.gameplayBg,
-  island3: assets.gameplayBg,
-  island4: assets.gameplayBg,
-  island5: assets.gameplayBg,
-  // New worlds — theme-matched (expansion index → gameplayBackgrounds index).
-  island6:  gameplayBackgrounds[0], // crystal portal
-  island7:  gameplayBackgrounds[1], // garden library
-  island8:  gameplayBackgrounds[2], // frozen clockwork
-  island9:  gameplayBackgrounds[3], // autumn artist
-  island10: gameplayBackgrounds[4], // jungle ruins
-  island11: gameplayBackgrounds[5], // candyland
-  island12: gameplayBackgrounds[6], // desert canyon
-  island13: gameplayBackgrounds[7], // rainbow playground
-  island14: gameplayBackgrounds[8], // alchemy lab
-  island15: gameplayBackgrounds[9], // lagoon
-};
 
 export type LevelState = "Completado" | "Actual" | "Bloqueado";
 
@@ -122,18 +94,6 @@ type WorldMetaEntry = {
 };
 
 /* Titles for the 10 expansion islands, in island6 → island15 order. */
-const expansionTitles = [
-  "Isla de la escritura",
-  "Isla de palabras largas",
-  "Isla de los signos",
-  "Isla de los correos",
-  "Isla de las búsquedas",
-  "Isla de los comandos",
-  "Isla de ventanas",
-  "Isla de los mensajes",
-  "Isla de atajos",
-  "Isla del gran reto",
-];
 
 /* =====================================================================
    Pedagogical world order (difficulty, easiest → hardest):
@@ -176,74 +136,41 @@ const worldMapPositions: Record<Activity["worldId"], MapPosition> = {
   island15: { x: 286, y: 13 },  // #15
 };
 
-/* Build the meta for an expansion island (island6 … island15).
-   - thumbnail (world map)        → floating island art
-   - background (island detail)   → scene WITH platforms (typely_backgrounds_webp)
-   - gameplayBg (gameplay screen) → central-stage scene (gameplay folder)
-   All three share the same theme via the expansion index. */
-function expansionMeta(worldId: Activity["worldId"], index: number): WorldMetaEntry {
-  return {
-    title: expansionTitles[index],
-    thumbnail: expansionIslandThumbs[index],
-    background: islandDetailBackgrounds[index],
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD[worldId],
-    positions: islandLevelLayouts[worldId],
-    map: worldMapPositions[worldId],
-  };
-}
-
-const worldMeta: Record<Activity["worldId"], WorldMetaEntry> = {
-  island1: {
-    title: "Isla de teclas",
-    thumbnail: assets.worldsIsland1,
-    background: assets.island1,
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD.island1,
-    positions: islandLevelLayouts.island1,
-    map: worldMapPositions.island1,
-  },
-  island2: {
-    title: "Isla de palabras",
-    thumbnail: assets.worldsIsland2,
-    background: assets.island2,
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD.island2,
-    positions: islandLevelLayouts.island2,
-    map: worldMapPositions.island2,
-  },
-  island3: {
-    title: "Isla de la biblioteca",
-    thumbnail: assets.worldsIsland3,
-    background: assets.island3,
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD.island3,
-    positions: islandLevelLayouts.island3,
-    map: worldMapPositions.island3,
-  },
-  island4: {
-    title: "Isla del árbol",
-    thumbnail: assets.worldsIsland4,
-    background: assets.island4,
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD.island4,
-    positions: islandLevelLayouts.island4,
-    map: worldMapPositions.island4,
-  },
-  island5: {
-    title: "Isla digital",
-    thumbnail: assets.worldsIsland5,
-    background: assets.island5,
-    gameplayBg: GAMEPLAY_BACKGROUND_BY_WORLD.island5,
-    positions: islandLevelLayouts.island5,
-    map: worldMapPositions.island5,
-  },
-  island6: expansionMeta("island6", 0),
-  island7: expansionMeta("island7", 1),
-  island8: expansionMeta("island8", 2),
-  island9: expansionMeta("island9", 3),
-  island10: expansionMeta("island10", 4),
-  island11: expansionMeta("island11", 5),
-  island12: expansionMeta("island12", 6),
-  island13: expansionMeta("island13", 7),
-  island14: expansionMeta("island14", 8),
-  island15: expansionMeta("island15", 9),
+/* El arte de un mundo se resuelve por su id — ver islandArt() en
+   utils/assets.ts. Las quince se arman igual: no hay una rama para las cinco
+   originales y otra para la expansión, ni índices paralelos que mantener en
+   orden. Lo único propio de cada isla es su título y dónde cae en el mapa. */
+const worldTitles: Record<Activity["worldId"], string> = {
+  island1:  "Isla de teclas",
+  island2:  "Isla de palabras",
+  island3:  "Isla de la biblioteca",
+  island4:  "Isla del árbol",
+  island5:  "Isla digital",
+  island6:  "Isla de la escritura",
+  island7:  "Isla de palabras largas",
+  island8:  "Isla de los signos",
+  island9:  "Isla de los correos",
+  island10: "Isla de las búsquedas",
+  island11: "Isla de los comandos",
+  island12: "Isla de ventanas",
+  island13: "Isla de los mensajes",
+  island14: "Isla de atajos",
+  island15: "Isla del gran reto",
 };
+
+const worldMeta = Object.fromEntries(
+  (Object.keys(worldTitles) as Activity["worldId"][]).map((id) => [
+    id,
+    {
+      title: worldTitles[id],
+      thumbnail: islandMapThumb(id),
+      background: islandArt(id).sky,
+      gameplayBg: islandGameplayBg(id),
+      positions: islandLevelLayouts[id],
+      map: worldMapPositions[id],
+    } satisfies WorldMetaEntry,
+  ]),
+) as Record<Activity["worldId"], WorldMetaEntry>;
 
 function buildLevels(worldId: Activity["worldId"], progress: CurriculumProgress): Level[] {
   return activitiesByWorld[worldId].map((activity) => {
@@ -285,10 +212,10 @@ function buildWorld(worldId: Activity["worldId"], progress: CurriculumProgress):
 }
 
 /* Background painted behind the gameplay screen for a given world.
-   ALWAYS resolves to a scene in /typely_gameplay_background_webp — never the
+   ALWAYS resolves to gameplay.webp de la carpeta de esa isla — never the
    island thumbnail, the old backgrounds set, or the fallback gameplay-bg. */
 export function getGameplayBackground(worldId: Activity["worldId"]): string {
-  return GAMEPLAY_BACKGROUND_BY_WORLD[worldId] ?? gameplayBackgrounds[0];
+  return islandGameplayBg(worldId);
 }
 
 /** Alias with the descriptive name used elsewhere in the codebase. */

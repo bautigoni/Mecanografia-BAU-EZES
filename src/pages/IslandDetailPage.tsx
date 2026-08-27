@@ -11,7 +11,7 @@ import { SkinProgressBar } from "../components/common/SkinProgressBar";
 import { LevelStars } from "../components/common/LevelStars";
 import { getWorldBySlug, getWorlds, worldStarProgress, WORLD_PEDAGOGY_ORDER, type Level, type LevelPosition } from "../data/worlds";
 import { LevelPositionEditor, type PerspField, type PerspMode } from "../components/dev/LevelPositionEditor";
-import { assets, levelButtonFor, levelNumberDoneColor } from "../utils/assets";
+import { assets, islandArt, levelButtonFor, levelNumberDoneColor } from "../utils/assets";
 
 /* The dev level-position editor is available in local dev builds, OR when a
    superadmin entered "modo desarrollador" from the god-mode chooser (which
@@ -28,19 +28,6 @@ const round1 = (v: number) => Math.round(v * 10) / 10;
 
 const PERSPECTIVE_BASE = { scale: 1.4, rotateX: 54.5, rotateY: -1.5, rotateZ: 2, perspective: 110 } as const;
 
-/* ---- Island image containers (per world) — separate from the full background.
-   The island PNG is centered in the viewport with object-fit: contain. Level
-   nodes live inside a %-grid that matches this island container, so their
-   positions stay locked to the art on every screen size. ---- */
-const ISLAND_IMG: Partial<Record<string, string>> = {
-  island1: "/assets/edutic-art/islands/1/island.png",
-};
-const ISLAND_BG: Partial<Record<string, string>> = {
-  // Soft pastel sky (same backdrop as the /mundos map) — clean, no busy
-  // castle islands. The island art is a separate PNG layered on top. The old
-  // islands/1/background.png was a flat blue sky and looked wrong.
-  island1: assets.homeBg,
-};
 
 
 /* ---- Status-pill colour map (state → Tailwind classes) ---- */
@@ -245,7 +232,7 @@ export function IslandDetailPage() {
     if (!maybeWorld) return;
     setBgReady(false);
     setBgImgSize(null);
-    const bgSrc = ISLAND_BG[maybeWorld.slug] ?? maybeWorld.background;
+    const bgSrc = islandArt(maybeWorld.slug).sky;
     const img = new Image();
     img.decoding = "async";
     const done = () => {
@@ -295,8 +282,9 @@ export function IslandDetailPage() {
      todo dependía de que el listener de resize corriera — si no corría, los
      nodos quedaban pegados a un rect viejo. Con contain nada se puede
      recortar, y sin JS no hay nada que se pueda desincronizar. ---------- */
-  const islandImgPath = ISLAND_IMG[world.slug];
-  const islandBgPath = ISLAND_BG[world.slug] ?? world.background;
+  /* Las dos capas del arte. Mientras la isla no esté separada, `island` es
+     null y el cielo ES la escena entera — ver islandArt() en assets.ts. */
+  const { sky: islandBgPath, island: islandImgPath } = islandArt(world.slug);
   const [islandImgSize, setIslandImgSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
