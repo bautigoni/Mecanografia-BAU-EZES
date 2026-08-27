@@ -1,0 +1,32 @@
+---
+description: TYPELY project rules — always apply. The full rulebook is CLAUDE.md.
+alwaysApply: true
+---
+
+# Read CLAUDE.md
+
+`CLAUDE.md`, at the repo root, is the single source of truth for this project:
+architecture, roles and auth, the visual and responsive systems, island art and
+asset layout, curriculum, project structure, deployment, branching, and the
+working rules for agents (§18).
+
+Read it before editing. These rules used to be duplicated across seven
+condensed `.mdc` files here, which drifted out of sync with the real doc; they
+were folded back into `CLAUDE.md` so there is one place to keep correct.
+
+## The parts you will reach for most
+
+- **§18 Agent Working Rules** — small reversible changes; stop and change
+  strategy after 3 failed attempts; never touch `node_modules/`, `dist/`,
+  `.vite/`, `package-lock.json`, local IDE settings or the originals in
+  `Images/`; run `npm run build` before claiming done; report what changed.
+- **§17 Branching** — one branch, `main`. It is protected and auto-deploys, so
+  it changes only through a pull request from a short-lived branch.
+- **§6 Responsive System** — monitors, Chromebooks (the constraint is *height*),
+  phones (the final RESPONSIVE PASS block in `global.css`). Verify at 375×812,
+  1366×768 and 1440×900.
+- **§6.3 Island art** — one folder per island, path built from the `worldId`.
+- **§15 Non-Negotiables** — RBAC, secrets never in `VITE_*`, correct Spanish,
+  stable Docker ports, never draw islands or mascots with CSS.
+
+If anything here disagrees with `CLAUDE.md`, `CLAUDE.md` wins.

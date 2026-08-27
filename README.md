@@ -7,19 +7,24 @@ containers (Nginx frontend, API, Postgres) behind Caddy. The typing engine keeps
 reading/writing `localStorage` so play never blocks on the network, and falls
 back to localStorage-only when the API is offline (demo mode).
 
-> **Authoritative docs:** see `CLAUDE.md` (architecture, structure, design +
-> responsive systems, rules), `dbnew.md` (backend log) and `DEPLOY.md` (ops).
+> **Authoritative doc:** `CLAUDE.md` — architecture, design and responsive
+> systems, asset layout, curriculum, deployment, branching and the working rules
+> for agents. It is the single source of truth; `AGENTS.md` and
+> `.cursor/rules/project.mdc` are stubs that point at it. Two companion docs
+> carry their own content: `dbnew.md` (backend log) and `DEPLOY.md` (ops).
 
 ## Branching workflow
 
-Work happens on **`dev`**; **`master`** is the host/production branch (there is
-no `main`). Never commit directly to `master` — it only updates through a
-reviewed **pull request from `dev` → `master`** when everything is ready and
-`npm run build` passes. See `CLAUDE.md` §17 for the full rules.
+There is one long-lived branch: **`main`**. It is the host/production branch —
+every push auto-deploys — so it is protected and rejects direct pushes. Work on
+a short-lived branch and merge through a pull request once `npm run build`
+passes. See `CLAUDE.md` §17 for the full rules.
 
 ```bash
-git checkout dev    # develop here, push to origin/dev
-# when ready for production: open a PR  dev → master  and merge it
+git checkout main && git pull
+git checkout -b feat/lo-que-sea
+git push -u origin feat/lo-que-sea
+gh pr create --base main && gh pr merge --merge --delete-branch
 ```
 
 ## Roles & dashboards

@@ -1,8 +1,14 @@
 # CLAUDE.md
 
-> Authoritative project guide for agents and developers. `AGENTS.md` points
-> here; `ENGINEERING_RULES.md` and `.cursor/rules/*` hold the condensed rules;
-> `dbnew.md` is the backend implementation log; `DEPLOY.md` is the ops runbook.
+> **This file is the single source of truth.** Architecture, design system,
+> rules and workflow all live here — there is no second rulebook. Every other
+> agent entry point (`AGENTS.md`, `.cursor/rules/project.mdc`) is a stub that
+> points back to this file, so Claude Code, Codex, Cursor and OpenCode all read
+> the same rules. Only three companion docs carry content of their own, and each
+> has a distinct job: `DEPLOY.md` (ops runbook), `dbnew.md` (backend
+> implementation log) and `Images/islands/BOTONES.md` (recipe for drawing a new
+> island's level button). If any of them ever disagrees with this file, **this
+> file wins** — fix the other one.
 
 ## 1. Project Overview
 
@@ -105,6 +111,45 @@ lands on its own surface via `routeForRole` (`/admin-general`, `/admin-sede`,
 - Shadows are soft and colorful, never harsh black. Glass panels:
   `0 24px 60px rgba(54,86,134,0.2)`.
 - Animations are soft and purposeful; honour `prefers-reduced-motion: reduce`.
+
+### Login card — reference spec
+
+Target proportions for the login card, kept from the original design reference.
+Where a number here disagrees with what `LoginPage.tsx` actually ships, **the
+shipped value wins** — notably the card is fixed at `w-[min(32rem,92vw)]`, and
+the fonts are Fredoka + Nunito (the reference also suggested Baloo 2 and
+Quicksand; do not introduce them).
+
+- **Card:** radius 34–44px, background `rgba(255,255,255,0.58)`, backdrop blur
+  22–30px, 1px border `rgba(255,255,255,0.85)`, outer shadow
+  `0 30px 90px rgba(80,70,180,0.28)`, soft turquoise/purple/pink glow on the top
+  and right edges. Never a flat blue/white rectangle.
+- **Vertical order:** wordmark → title → subtitle → "Tu rol" divider → 2×2 role
+  selector → user input → password input → primary button → demo button → safety
+  note.
+- **Wordmark** dominates the top of the card at 48–58px. Never a small square
+  icon as the brand.
+- **Type:** title 40–48px weight 800–900 `#18325f`; subtitle 17–20px `#52658f`;
+  labels 14–16px weight 700 `#596994`.
+- **Role selector:** 2×2 pills, gap 14–16px, height 62–68px, radius 18–22px.
+  Inactive `rgba(255,255,255,0.72)`; active
+  `linear-gradient(135deg, rgba(255,255,255,0.9), rgba(220,245,255,0.65))` with a
+  2px `#5ff3d4`/`#9b7cff` border and `0 0 22px rgba(118,92,255,0.25)` glow.
+- **Inputs:** height 58–64px, radius 18–22px, `rgba(255,255,255,0.72)`, border
+  `rgba(130,140,190,0.22)`, focus border `#73f3dc` with
+  `0 0 0 4px rgba(115,243,220,0.25)`. Left icon; eye toggle on password.
+- **Primary button:** height 62–68px, radius 22px,
+  `linear-gradient(90deg, #54e8c6, #25c8df, #536bff)`, shadow
+  `0 14px 30px rgba(35,190,210,0.35)`, sparkle left + arrow right, hover
+  `translateY(-2px) brightness(1.03)`, active `scale(0.98)`.
+- **Demo button:** height 56–62px, `rgba(255,255,255,0.78)`, text `#405083` or
+  `#5e4edb`, rocket icon, soft border.
+- **Mascots** flank the card from outside it, never cropped, never stretched,
+  never on a white box. See "Login mascots" below for the shipped positioning.
+
+When you change this screen, screenshot it and compare against the reference
+before calling it done; fix spacing, proportions, blur, radius and shadows and
+repeat. One pass is rarely enough.
 
 ### Keyboard (GameplayPage)
 - Five rows (`num`, `top`, `home`, `bot`, `mod`), each with its own gradient so
@@ -515,6 +560,26 @@ touchpad, windows, tabs, shortcuts, text editing, UI literacy). `SkillLevelView`
   mirroring the shipped folder. Never published.
 - `Images/`, `Images-new/` — **original source art (never modified).**
 
+### Where the docs live
+
+One rulebook, three companion docs, two stubs. Nothing else should grow into a
+second source of rules:
+
+| File | Job |
+|---|---|
+| `CLAUDE.md` | **The rulebook.** Architecture, design, assets, curriculum, deploy, branching, agent rules |
+| `DEPLOY.md` | Ops runbook for the Oracle VPS |
+| `dbnew.md` | Backend implementation log (history, not rules) |
+| `Images/islands/BOTONES.md` | Recipe for drawing and importing a new island's level button |
+| `README.md` | Public-facing intro; points here for anything authoritative |
+| `AGENTS.md` | Stub so non-Claude agents land on `CLAUDE.md` |
+| `.cursor/rules/project.mdc` | Stub so Cursor's always-apply rules land on `CLAUDE.md` |
+
+`ENGINEERING_RULES.md`, `Skills/skill.md` and the seven condensed
+`.cursor/rules/*.mdc` files were folded into this one and deleted: they had
+drifted apart from each other on the branching rules and the login card spec,
+and each agent was reading a different version of the truth.
+
 ## 10. Asset Pipeline
 
 Originals in `Images/` and `Images-new/` are **never** modified. Web copies live
@@ -593,13 +658,15 @@ docs. Full runbook in `DEPLOY.md`.
 
 The slow on-VM build (`DOCKER_BUILDKIT=0` + detached `nohup`, never BuildKit) is
 the fallback ONLY for the **API** image, which can't be shipped as a static
-bundle. The VM tracks `dev` (its local branch is named `main` but mirrors
-`origin/dev`); the DB is **Supabase**, not the local `db` container.
+bundle. The DB is **Supabase**, not the local `db` container.
+
+> **Check this on the VM.** It used to track `origin/dev` through a local branch
+> confusingly named `main`. `dev` no longer exists, so a `git pull` there will
+> fail or sit on a stale ref until its remote-tracking branch is repointed at
+> `origin/main`.
 
 ## 14. Skills (for agents)
 
-- `Skills/skill.md` — **EduTic Design Skill**: pixel-spec for the login card and
-  visual system; match reference images, compare by screenshot.
 - `Skills/frontend-design/SKILL.md` — Anthropic **frontend-design** skill
   (distinctive, production-grade UI; avoid generic AI aesthetics). A working copy
   also lives at `.claude/skills/frontend-design/` for local Claude Code use.
@@ -622,9 +689,8 @@ bundle. The VM tracks `dev` (its local branch is named `main` but mirrors
 - Keep Docker building; do not bind host ports 80/443 in app compose; keep the
   `127.0.0.1:3005` / `:3006` ports stable. Don't ship dead buttons.
 - Spanish must be correct: tildes (á é í ó ú), ñ, mayúsculas, inverted `¿` `¡`.
-- **Branch on `dev`, never commit directly to `master`.** `master` is the
-  host/production branch; it only changes through a reviewed pull request from
-  `dev` when everything is ready (see §17).
+- **Never push to `main` directly** — it auto-deploys. Work on a short-lived
+  branch and merge through a pull request (see §17).
 - After any code change run `npm run build` (= `tsc --noEmit && vite build`); fix
   failures before claiming done. Report which files changed and how to test.
 - Deploy the frontend to the Oracle VM with the prebuilt-`dist` procedure in
@@ -645,33 +711,105 @@ the API/DB require the backend (see `DEPLOY.md`). Reset demo data by clearing th
 
 ## 17. Branching & Git Workflow
 
-The repo has two long-lived branches:
+**There is one long-lived branch: `main`.** It is what `typely.bauhub.online`
+runs — every push to it auto-deploys via `.github/workflows/deploy.yml` — so it
+must stay releasable at all times.
 
-- **`dev` — all development happens here.** Branch off `dev`, commit your work to
-  `dev` (or to short-lived feature branches that merge back into `dev`), and push
-  `dev`. This is the default working branch for everyone — humans and agents.
-- **`main` — host/production only.** Every push to `main` **auto-deploys** to
-  `typely.bauhub.online` via `.github/workflows/deploy.yml`, so it must stay
-  releasable at all times.
+GitHub enforces this: `main` is protected and rejects direct pushes. The only
+way in is a pull request.
 
-Hard rules:
-
-1. **Never commit or push directly to `main`.** It changes *only* through a
-   pull request from `dev`, and *only* when the work is finished and tested
-   ("cuando esté todo listo").
-2. **`dev` → `main` via Pull Request.** When everything is ready, open a PR from
-   `dev` into `main`, review it, then merge. Do not fast-forward random branches
-   into `main` by hand.
-3. **Before opening the PR**, run `npm run build` (`tsc --noEmit && vite build`)
-   plus `npx tsc -p api/tsconfig.json`, and the deploy checklist (see
-   `DEPLOY.md` / §13) so `main` never breaks.
-4. Keep `dev` merged up to date with `main` after each release so the two don't
-   drift.
-5. The legacy `master` branch is historical only — do not use it.
+1. **Branch off `main`** for the work at hand, with a descriptive name
+   (`feat/…`, `fix/…`, `chore/…`). Keep it short-lived.
+2. **Before opening the PR**, run `npm run build` (`tsc --noEmit && vite build`)
+   and `npx tsc -p api/tsconfig.json`, plus the deploy checklist in §13, so
+   `main` never breaks.
+3. **Open the PR into `main`, merge it, delete the branch.** Do not accumulate
+   long-lived parallel branches — that is what this replaced.
 
 ```bash
-git checkout dev          # work happens here
+git checkout main && git pull
+git checkout -b feat/lo-que-sea
 # …edit, commit…
-git push origin dev       # pushes to origin/dev (never to main)
-# when ready for production: open a PR  dev → main  and merge it
+git push -u origin feat/lo-que-sea
+gh pr create --base main && gh pr merge --merge --delete-branch
 ```
+
+**History note.** This repo used to run `dev` → `master`/`main` as two or three
+long-lived branches, and older docs described that. They were consolidated into
+`main` alone; `dev` and `master` are gone. If you find a doc still describing
+the old flow, it is stale — fix it.
+
+## 18. Agent Working Rules
+
+How to work in this repo, for humans and agents alike. These were previously
+spread across `ENGINEERING_RULES.md` and seven `.cursor/rules/*.mdc` files;
+they live here now.
+
+### Before you edit
+
+Read the relevant files, components, data models, routes and styles first. Do
+not invent architecture that conflicts with what is already here. If you are
+unsure of a filename, route, data shape or deployment behaviour, search the repo
+and read the code — do not guess.
+
+### While you edit
+
+- Make **small, focused, reversible** changes. Do not rewrite a whole feature
+  unless asked.
+- Follow the stack and patterns already present before reaching for a new
+  library or structure.
+- **After 3 failed attempts on the same bug, stop and change strategy**: clear
+  the relevant cache, re-read the error, inspect logs, isolate the failing file,
+  try a different approach. Do not keep patching randomly. Say what failed and
+  what you changed.
+- Use data/config for layout, never hardcoded pixel hacks — level positions are
+  percentages in `src/data/levelPositions.ts`, placed with the `?editor=1` dev
+  tool (§6.1). If art shows more painted platforms than the curriculum has
+  levels, the extras stay **decoration**; do not invent levels to fill them.
+- Adding a level means adding **both** an `Activity` in `src/data/activities.ts`
+  and a matching coordinate. Level count is per-island, not fixed.
+- Clean up after the UI: cap visible toasts, and make intervals, animation loops
+  and event listeners unsubscribe on unmount.
+- Animations (`animejs` / `framer-motion`) only where they earn their place. No
+  janky scroll, teleporting elements or infinite distracting loops. Honour
+  `prefers-reduced-motion: reduce`.
+- Modals and popovers must scroll when taller than the viewport
+  (`max-height: 88vh; overflow-y: auto`), and fixed UI must never cover an
+  interactive element.
+
+### Never touch
+
+Unless the user asks for it in the current conversation: `node_modules/`,
+`dist/`, `build/`, `.vite/`, `package-lock.json` (unless a dependency changed on
+purpose), local IDE settings (`.claude/settings.local.json`, `.vscode/`), and the
+originals under `Images/` and `Images-new/`.
+
+### Before touching auth
+
+Verify end to end: manual email/password login; Google login (normalized email,
+`normalizeEmail()` in `src/utils/storage.ts`); "Cerrar sesión" clears the
+session; the role redirect lands on the right surface; `localStorage`
+(`edutic_*`) and `sessionStorage` behaviour is preserved; a sede admin on a temp
+password is forced to `/cambiar-contrasena` while Google sign-in bypasses it.
+Never store or display a user's current password — only a freshly generated temp
+value, once.
+
+### Before you call it done
+
+Run `npm run build` (which includes `tsc --noEmit`) and fix any failure. Then
+report exactly which files changed, why, and how to test the result.
+
+### Before you tell the user to deploy
+
+Confirm `git status` is clean for the intended change, the build succeeds, the
+container rebuilt and is up (`docker compose ps`), and the smoke test passes
+(`curl -I http://127.0.0.1:3005`). Only then suggest
+`caddy validate && caddy reload` and the public smoke test. Deploy the frontend
+with the prebuilt-`dist` procedure in §13.1 — never a full
+`docker compose build` of `mecanografia` on the 956MB VM.
+
+### Verify responsively
+
+Check at 375×812 (phone), 1366×768 (Chromebook) and 1440×900 (monitor). New
+phone rules go in the final RESPONSIVE PASS block of `global.css` so they win
+the cascade without disturbing desktop or Chromebook (§6).
