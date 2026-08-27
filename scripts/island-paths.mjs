@@ -28,10 +28,13 @@ export const estaSeparada = (id) => fs.existsSync(`${SHIPPED}/${id}/island.webp`
 /** El arte contra el que se miden los % de levelPositions.ts: la isla
  *  recortada si ya está separada, y si no la escena entera. */
 export const arteDe = (id) =>
-  estaSeparada(id) ? `${SHIPPED}/${id}/island.webp` : `${SHIPPED}/${id}/sky.webp`;
+  estaSeparada(id) ? `${SHIPPED}/${id}/island.webp` : `${SHIPPED}/${id}/scene.webp`;
 
-/** El fondo que llena la pantalla detrás del arte. */
-export const cieloDe = (id) => `${SHIPPED}/${id}/sky.webp`;
+/** El fondo que llena la pantalla detrás del arte. Mientras la isla no está
+ *  separada el archivo no es un cielo sino la escena entera, y se llama
+ *  scene.webp justamente para que eso se vea al abrir la carpeta. */
+export const cieloDe = (id) =>
+  estaSeparada(id) ? `${SHIPPED}/${id}/sky.webp` : `${SHIPPED}/${id}/scene.webp`;
 
 /** Botón de nivel de una isla, libre o apretado. */
 export const botonDe = (id, apretado = false) =>

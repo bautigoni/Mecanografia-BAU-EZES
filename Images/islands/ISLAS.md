@@ -14,6 +14,23 @@ desenfocada. Un parche.
 Separadas, el cielo cubre la pantalla entera y se recorta sin costo (no tiene
 nada posicionado encima), y la isla se ajusta sola. Ahí es responsive de verdad.
 
+## De dónde sacás la imagen combinada
+
+De la carpeta de fuentes de esa isla:
+
+```
+Images/islands/islandN/scene-source.png   (islas 1 a 5)
+Images/islands/islandN/scene-source.webp  (islas 6 a 15)
+```
+
+Ese es el archivo que le mandás al modelo con los prompts de más abajo.
+
+En la carpeta publicada, `public/assets/islands/islandN/`, la misma escena está
+como **`scene.webp`**. Se llama así a propósito: mientras la isla no está
+separada ese archivo NO es un cielo, es el dibujo entero. Cuando la separás
+aparecen `sky.webp` e `island.webp`, y `scene.webp` desaparece — así la carpeta
+nunca tiene dos fondos y se ve de un vistazo en qué estado está cada isla.
+
 ## El orden importa
 
 1. **Primero arreglar los pedestales**, sobre la imagen combinada.

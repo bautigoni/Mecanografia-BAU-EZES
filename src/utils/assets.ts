@@ -93,9 +93,9 @@ type IslandArtEntry = {
 const ISLAND_ART: Record<string, IslandArtEntry> = {
   island1:  { split: true },  // teclas: piedra helada, cristales y florcitas
   island2:  { split: true },               // piedra con pasto y florcitas
-  island3:  {},               // mármol y oro, pasto y pétalos
-  island4:  {},               // piedra con musgo y hojas
-  island5:  {},               // piedra con pasto y cubos de hielo
+  island3:  { split: true },               // mármol y oro, pasto y pétalos
+  island4:  { split: true },               // piedra con musgo y hojas
+  island5:  { split: true },               // piedra con pasto y cubos de hielo
   island6:  {},               // portal de cristal: runas y drusas
   island7:  {},               // jardín: cerezo en flor
   island8:  {},               // reloj helado: hielo, bronce y nieve
@@ -109,8 +109,10 @@ const ISLAND_ART: Record<string, IslandArtEntry> = {
 };
 
 export type IslandArt = {
-  /** Llena la pantalla entera y se puede recortar sin costo: no lleva nada
-   *  posicionado encima. */
+  /** El fondo: llena la pantalla entera y se puede recortar sin costo, porque
+   *  no lleva nada posicionado encima. En una isla ya separada es sky.webp, el
+   *  cielo de verdad; en una que todavia no, es scene.webp, la escena entera,
+   *  y la pagina la reusa desenfocada para tapar las bandas. */
   sky: string;
   /** La isla con sus plataformas, recortada. Es la caja contra la que se
    *  miden los % de levelPositions.ts. `null` mientras esa isla siga siendo
@@ -120,11 +122,18 @@ export type IslandArt = {
 
 const islandFile = (worldId: string, file: string) => `${ISLANDS_DIR}/${worldId}/${file}`;
 
-/** Las dos capas del arte de un mundo. */
+/** Las dos capas del arte de un mundo.
+ *
+ *  El archivo de fondo cambia de nombre segun el estado, a proposito: mientras
+ *  la isla no esta separada el archivo NO es un cielo, es la escena completa, y
+ *  llamarlo sky.webp hacia que uno abriera la carpeta y creyera que faltaba el
+ *  arte. scene.webp dice lo que es. Al separar, scene.webp se va y aparecen
+ *  sky.webp + island.webp. */
 export function islandArt(worldId: string): IslandArt {
+  const separada = !!ISLAND_ART[worldId]?.split;
   return {
-    sky: islandFile(worldId, "sky.webp"),
-    island: ISLAND_ART[worldId]?.split ? islandFile(worldId, "island.webp") : null,
+    sky: islandFile(worldId, separada ? "sky.webp" : "scene.webp"),
+    island: separada ? islandFile(worldId, "island.webp") : null,
   };
 }
 

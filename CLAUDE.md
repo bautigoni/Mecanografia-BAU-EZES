@@ -361,8 +361,10 @@ table to keep in order:
 
 ```
 public/assets/islands/islandN/     ← shipped, WebP only
-  sky.webp             the background, no platforms
-  island.webp          the island cut out, with alpha (only once split)
+  scene.webp           the whole painting, sky and island together — ONLY
+                       while that island is not split yet
+  sky.webp             the background alone, no platforms — only once split
+  island.webp          the island cut out, with alpha — only once split
   map.webp             the thumbnail on the world map
   gameplay.webp        the scene behind the keyboard
   button.webp          level button, free
@@ -370,7 +372,8 @@ public/assets/islands/islandN/     ← shipped, WebP only
   ui/                  level interface (not built yet)
 
 Images/islands/islandN/            ← sources, never shipped
-  scene-source.png, button-sheet.png, map-hi.webp, …
+  scene-source.png|webp, island-source.png, sky-source.jpg,
+  button-sheet.png, map-hi.webp, …
 
 public/assets/islands/_default/    ← fallback button for a world with no art yet
 public/assets/islands/_backups/    ← pre-colour-pass originals (gitignored)
@@ -390,12 +393,21 @@ thumbnail was a file named `background-island1.webp`. Nothing in the name told
 you that; you had to know. Worlds 1-5 went down a second code path entirely.
 Building the path from the `worldId` makes the offset unrepresentable.
 
-**The two layers, and why they exist.** `sky` fills the whole screen with
+**The background file changes name with the state, deliberately.** Unsplit it is
+`scene.webp`; split it is `sky.webp`. Calling the combined painting `sky.webp`
+made people open an island's folder, see no "island" file, and conclude the art
+was missing — it was right there under a name that lied. `scene.webp` says what
+it is, and the importer deletes it once the two real layers exist, so a folder
+never holds two backgrounds. Every island also keeps a copy of its combined
+scene in `Images/islands/islandN/scene-source.*`: that is the file you hand to
+the model when you want it split.
+
+**The two layers, and why they exist.** The background fills the whole screen with
 `object-fit: cover` and may crop freely — nothing is positioned on it.
 `island` goes in the stage box, which is sized to the island's own aspect
 ratio and *contained*, so it always fits whole; the percentages in
 `levelPositions.ts` are measured against that box. While an island is not yet
-split, `islandArt().island` is `null`, `sky.webp` is still the combined
+split, `islandArt().island` is `null`, the background is still the combined
 painting, and the page reuses it blurred behind itself to fill the letterbox
 bands — a stopgap, not the design.
 
