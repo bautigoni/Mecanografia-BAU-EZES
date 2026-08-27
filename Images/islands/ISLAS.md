@@ -28,13 +28,17 @@ quitar un pedestal mueve todo de nuevo.
 
 ## Cuántos pedestales necesita cada isla
 
-Uno por nivel. El conteo sale de `src/data/activities.ts` y hoy es:
+Uno por nivel. El conteo sale de `src/data/activities.ts`:
 
 | Pedestales | Islas |
 |---|---|
-| 6 | 2, 4, 7, 10, 12, 13, 14 |
-| 7 | 1, 3, 5, 6, 8, 9, 11 |
-| 8 | 15 |
+| **7** | 1 a 14 |
+| **8** | 15 |
+
+**Siete en todas, salvo la 15.** Esa es la final del juego: repasa siete
+destrezas distintas (letras, palabras, frases, signos, correo, atajos y
+búsquedas) y encima cierra con el gran final, así que necesita ocho. Es la
+única excepción y es a propósito.
 
 Si el arte muestra **más** pedestales que niveles tiene esa isla no pasa nada:
 los de sobra quedan como decoración y el juego los ignora. Si muestra **menos**,

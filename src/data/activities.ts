@@ -252,6 +252,22 @@ const world2: Activity[] = [
     difficulty: 4,
     description: "Corregí cada palabra con Backspace: el error es distinto en cada una.",
   }),
+  makeActivity({
+    worldId: "island2",
+    levelNumber: 7,
+    title: "Reto de palabras",
+    subtitle: "Todo lo aprendido",
+    instruction: "Escribí la frase completa.",
+    listenText: "Escribí la frase completa.",
+    /* Cierre de la isla, un escalón sobre "Dos palabras": tres palabras en vez
+       de dos, con el vocabulario que ya practicó en los niveles anteriores.
+       Sin tildes ni mayúsculas, que se enseñan recién en la isla 3. */
+    targets: ["el gato duerme", "mi libro verde", "la luna brilla", "una fruta rica", "el perro corre"],
+    mode: "independent",
+    inputType: "phrase",
+    difficulty: 5,
+    description: "Cerrá la isla escribiendo frases de tres palabras.",
+  }),
 ];
 
 const world3: Activity[] = [
@@ -444,6 +460,26 @@ const world4: Activity[] = [
     description: "Reto final con todos los signos del español.",
     requiresAccent: true,
     requiresShift: true,
+  }),
+  makeActivity({
+    worldId: "island4",
+    levelNumber: 7,
+    title: "Código experto",
+    subtitle: "El reto más difícil",
+    instruction: "Escribí la línea completa, con todos sus signos.",
+    listenText: "Escribí la línea completa, con todos sus signos.",
+    /* Un escalón sobre "Reto final": cada línea combina VARIOS signos a la vez
+       (pregunta + exclamación + arroba + dos puntos), en vez de uno o dos. */
+    targets: [
+      "¿Tu correo es ana@edutic.com?",
+      "¡Atención! Clave: 2026-ABC.",
+      "Escribí a lucas@escuela.edu.ar, por favor.",
+      "¿Listo? ¡Enviá el mensaje ahora!",
+    ],
+    mode: "independent",
+    inputType: "phrase",
+    difficulty: 7,
+    description: "Combiná varios signos en una misma línea.",
   }),
 ];
 
@@ -747,6 +783,26 @@ const world7: Activity[] = [
     difficulty: 5,
     description: "Cerrá la isla escribiendo frases completas.",
   }),
+  makeActivity({
+    worldId: "island7",
+    levelNumber: 7,
+    title: "Frases largas",
+    subtitle: "El reto más difícil",
+    instruction: "Escribí la frase completa.",
+    listenText: "Escribí la frase completa.",
+    /* Un escalón sobre "Reto de frases": cinco palabras en vez de cuatro.
+       Sigue sin tildes ni mayúsculas, igual que el resto de la isla. */
+    targets: [
+      "me gusta leer libros nuevos",
+      "vamos a jugar en el parque",
+      "el elefante camina muy despacio",
+      "hoy puedo escribir mucho mejor",
+    ],
+    mode: "independent",
+    inputType: "phrase",
+    difficulty: 6,
+    description: "Cerrá la isla con las frases más largas.",
+  }),
 ];
 
 /* World 8 — Isla de los signos: puntuación y símbolos progresivos. */
@@ -1039,6 +1095,26 @@ const world10: Activity[] = [
     description: "Cerrá la isla buscando como un experto.",
     requiresAccent: true,
   }),
+  makeActivity({
+    worldId: "island10",
+    levelNumber: 7,
+    title: "Búsqueda experta",
+    subtitle: "El reto más difícil",
+    instruction: "Escribí la búsqueda completa.",
+    listenText: "Escribí la búsqueda completa.",
+    /* Un escalón sobre "Buscador experto": preguntas más largas, y una
+       dirección web mezclada para alternar entre buscar y navegar. */
+    targets: [
+      "cuantos planetas tiene el sistema solar",
+      "www.biblioteca.escuela.edu.ar",
+      "como se llaman las nubes mas altas",
+      "juegos para aprender a escribir rapido",
+    ],
+    mode: "independent",
+    inputType: "phrase",
+    difficulty: 6,
+    description: "Buscá con preguntas largas y escribí direcciones web.",
+  }),
 ];
 
 /* World 11 — Isla de los comandos: atajos básicos (engine de atajos). */
@@ -1216,6 +1292,22 @@ const world12: Activity[] = [
     difficulty: 5,
     description: "Cerrá la isla manejando ventanas y pestañas.",
   }),
+  makeActivity({
+    worldId: "island12",
+    levelNumber: 7,
+    title: "Malabares de pestañas",
+    subtitle: "El reto más difícil",
+    instruction: "Hacé cada atajo que aparece, sin equivocarte.",
+    listenText: "Hacé cada atajo que aparece en pantalla.",
+    /* Un escalón sobre "Reto de ventanas": la misma familia de atajos pero en
+       una tanda más larga y alternando más. NO se suma Ctrl+Shift+Tab: ese se
+       enseña en la isla 14, que viene después en el orden pedagógico. */
+    targets: ["Ctrl+T", "Alt+Tab", "Ctrl+Tab", "Ctrl+W", "Alt+Tab", "Ctrl+T"],
+    mode: "independent",
+    inputType: "shortcut",
+    difficulty: 6,
+    description: "Encadená seis atajos de ventanas y pestañas seguidos.",
+  }),
 ];
 
 /* World 13 — Isla de los mensajes: frases amigables. */
@@ -1304,6 +1396,25 @@ const world13: Activity[] = [
     requiresAccent: true,
     requiresShift: true,
   }),
+  makeActivity({
+    worldId: "island13",
+    levelNumber: 7,
+    title: "Mensaje completo",
+    subtitle: "El reto más difícil",
+    instruction: "Escribí el mensaje completo.",
+    listenText: "Escribí el mensaje completo.",
+    /* Un escalón sobre "Reto de mensajes": dos oraciones por mensaje en vez de
+       una, manteniendo las tildes y los signos de apertura. */
+    targets: [
+      "¡Hola! ¿Querés jugar en el parque mañana?",
+      "Gracias por invitarme, me divertí mucho.",
+      "¡Feliz cumpleaños! Te deseo un día genial.",
+    ],
+    mode: "independent",
+    inputType: "phrase",
+    difficulty: 7,
+    description: "Escribí mensajes de dos oraciones, con todos sus signos.",
+  }),
 ];
 
 /* World 14 — Isla de atajos avanzados (engine de atajos). */
@@ -1385,6 +1496,21 @@ const world14: Activity[] = [
     inputType: "shortcut",
     difficulty: 6,
     description: "Cerrá la isla como un experto en atajos.",
+  }),
+  makeActivity({
+    worldId: "island14",
+    levelNumber: 7,
+    title: "Maestro de atajos",
+    subtitle: "El reto más difícil",
+    instruction: "Hacé cada atajo que aparece, sin equivocarte.",
+    listenText: "Hacé cada atajo que aparece en pantalla.",
+    /* Un escalón sobre "Reto experto": tanda más larga y cargada de atajos de
+       TRES teclas, que son los que más cuestan. */
+    targets: ["Ctrl+Shift+T", "Ctrl+Y", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Shift+Tab", "Alt+Tab"],
+    mode: "independent",
+    inputType: "shortcut",
+    difficulty: 7,
+    description: "Cerrá el juego encadenando los atajos más difíciles.",
   }),
 ];
 

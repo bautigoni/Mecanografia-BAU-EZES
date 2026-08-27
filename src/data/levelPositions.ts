@@ -135,6 +135,7 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
     { x: 52.6, y: 35.5, scale: 1.62, rotateX: 40.4, perspective: 4000 },  // N4 — disco arriba-centro   (anillo 0.421, el más lejano → el más acostado)
     { x: 68.2, y: 41.3, scale: 1.59, rotateX: 36.1, perspective: 4000 },  // N5 — disco arriba-derecha  (anillo 0.447)
     { x: 62.9, y: 61.6, scale: 1.64, rotateX: 30, perspective: 4000 },  // N6 — disco medio-derecha   (anillo 0.479)
+    { x: 48, y: 55, scale: 1.66, rotateX: 33, perspective: 4000 },  // N7 - provisoria, al centro del anillo
   ],
 
   island3: [
@@ -161,6 +162,7 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
     { x: 38, y: 76 },   // N4 — bottom-centre
     { x: 32, y: 62 },   // N5 — mid-left of the main chain
     { x: 72, y: 74 },   // N6 — bottom-right of the main chain
+    { x: 60, y: 48 },   // N7 - provisoria, hueco arriba a la derecha
   ],
 
   island5: [
