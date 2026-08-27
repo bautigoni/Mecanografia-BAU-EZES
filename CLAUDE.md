@@ -423,6 +423,10 @@ its aspect ratio from this image), and it **refuses an island with no alpha
 channel** — an opaque cut-out covers the whole sky and the mistake only shows up
 once you open the page. Nothing is ever upscaled.
 
+The prompts for getting those two sources out of a combined scene — and for
+adding or removing a pedestal when the art does not match the level count — are
+in `Images/islands/ISLAS.md`.
+
 Command-line scripts do not read the `split` flag: `scripts/island-paths.mjs`
 infers it from whether `island.webp` exists on disk, so the two cannot drift.
 
@@ -587,6 +591,7 @@ second source of rules:
 | `CLAUDE.md` | **The rulebook.** Architecture, design, assets, curriculum, deploy, branching, agent rules |
 | `DEPLOY.md` | Ops runbook for the Oracle VPS |
 | `dbnew.md` | Backend implementation log (history, not rules) |
+| `Images/islands/ISLAS.md` | Prompts for splitting a scene into sky + island, and for fixing pedestal count |
 | `Images/islands/BOTONES.md` | Recipe for drawing and importing a new island's level button |
 | `README.md` | Public-facing intro; points here for anything authoritative |
 | `AGENTS.md` | Stub so non-Claude agents land on `CLAUDE.md` |

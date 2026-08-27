@@ -13,6 +13,8 @@ each with a distinct job:
 
 - [`DEPLOY.md`](DEPLOY.md) — ops runbook.
 - [`dbnew.md`](dbnew.md) — backend implementation log.
+- [`Images/islands/ISLAS.md`](Images/islands/ISLAS.md) — prompts for splitting
+  an island's art into sky + island, and for fixing its pedestal count.
 - [`Images/islands/BOTONES.md`](Images/islands/BOTONES.md) — how to draw and
   import a new island's level button.
 
