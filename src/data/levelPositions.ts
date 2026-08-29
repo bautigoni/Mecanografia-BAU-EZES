@@ -94,11 +94,14 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
   ],
 
   island2: [
-    /* Isla de palabras — island2.webp (1672x941). 6 niveles, 6 discos.
+    /* Isla de palabras — island.webp (1193x930). 7 niveles, 7 discos.
 
-       -- Recolocada sobre los anillos del pedestal (2026-08-24) -----------
-       Medido con  node scripts/measure-pedestal.mjs  y verificado con
-       node scripts/preview-level-positions.mjs island2 --sprite
+       -- Recolocada sobre los anillos del pedestal (2026-08-29) -----------
+       El arte se re-importó recortado (antes 1672x941): mismo dibujo pero la
+       caja perdió los márgenes laterales, así que TODOS los % de x se
+       corrieron y hubo que volver a medir. Medido con
+       node scripts/measure-pedestal.mjs (tolerancia 36) y verificado con
+       node scripts/preview-level-positions.mjs island2
 
        CENTRO. La referencia es el ANILLO del pedestal (el circulo que forman
        las divisiones de los ladrillos), no el borde exterior: el borde se
@@ -114,28 +117,28 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
 
            alfa = acos(r / 0.553)
 
-       El ratio baja con la distancia: 0.537 en el disco de abajo (casi
-       redondo, 14 grados) hasta 0.421 en el de arriba (bien ovalado, 40).
-       Ese gradiente es la perspectiva de la escena.
+       El ratio baja con la distancia: ~0.537 en los discos de abajo (16°)
+       hasta ~0.500 en los de arriba (25°). Ese gradiente es la perspectiva
+       de la escena.
 
        perspective: 4000 ~ ortografico, condicion para que valga el cos(alfa).
 
-       TAMANO. El boton visible ocupa ~72 % del ancho del anillo, asi que las
-       divisiones de ladrillo se siguen viendo alrededor. Al convertir, ojo:
-       el dibujo solo llena 454/600 del ancho de su lienzo.
+       TAMANO. El boton visible ocupa ~92 % del ancho del anillo (cobertura
+       por defecto del script). Al convertir, ojo: el dibujo solo llena
+       454/600 del ancho de su lienzo.
 
        NOTA DE ASSET. public/assets/level.png se re-encuadro de 600x378 a
        600x445 para que el centro del lienzo caiga sobre el centro de la base.
        Antes tenia 81px de margen arriba y 29 abajo, y el boton salia corrido
        hacia abajo en TODAS las islas. El original esta en _backups/.
     */
-    { x: 49.1, y: 75.1, scale: 1.82, rotateX: 36.5, perspective: 4000 },  // N1 — disco abajo-centro    (anillo 0.537, el más cercano → casi sin inclinar)
-    { x: 33.3, y: 66.7, scale: 1.71, rotateX: 28.4, perspective: 4000 },  // N2 — disco abajo-izquierda (anillo 0.486)
-    { x: 32.5, y: 49.6, scale: 1.62, rotateX: 36.1, perspective: 4000 },  // N3 — disco medio-izquierda (anillo 0.447)
-    { x: 52.6, y: 35.5, scale: 1.62, rotateX: 40.4, perspective: 4000 },  // N4 — disco arriba-centro   (anillo 0.421, el más lejano → el más acostado)
-    { x: 68.2, y: 41.3, scale: 1.59, rotateX: 36.1, perspective: 4000 },  // N5 — disco arriba-derecha  (anillo 0.447)
-    { x: 62.9, y: 61.6, scale: 1.64, rotateX: 30, perspective: 4000 },  // N6 — disco medio-derecha   (anillo 0.479)
-    { x: 48, y: 55, scale: 1.66, rotateX: 33, perspective: 4000 },  // N7 - provisoria, al centro del anillo
+    { x: 49.3, y: 73.8, scale: 2.84, rotateX: 13.9, perspective: 4000 },  // N1 — disco abajo-centro    (anillo 0.537, el más cercano → casi sin inclinar)
+    { x: 25.8, y: 70.1, scale: 2.81, rotateX: 16.4, perspective: 4000 },  // N2 — disco abajo-izquierda (anillo 0.531)
+    { x: 27.7, y: 48.6, scale: 2.69, rotateX: 24.4, perspective: 4000 },  // N3 — disco medio-izquierda (anillo 0.504)
+    { x: 55.4, y: 32.7, scale: 2.44, rotateX: 25.3, perspective: 4000 },  // N4 — disco arriba-centro   (anillo 0.500, el más lejano → el más acostado)
+    { x: 76.2, y: 40.5, scale: 2.56, rotateX: 23.4, perspective: 4000 },  // N5 — disco arriba-derecha  (anillo 0.507)
+    { x: 73.6, y: 64.2, scale: 2.88, rotateX: 16.7, perspective: 4000 },  // N6 — disco abajo-derecha   (anillo 0.530, centro afinado a ojo)
+    { x: 56.4, y: 52.7, scale: 2.60, rotateX: 16.8, perspective: 4000 },  // N7 — disco central         (anillo 0.529)
   ],
 
   island3: [
