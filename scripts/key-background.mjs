@@ -26,7 +26,18 @@ export function colorDeFondo(data, W, H, C) {
   return muestras.map((m) => m.sort((a, b) => a - b)[m.length >> 1]);
 }
 
-/** Máscara de fondo (1 = es fondo) para una imagen RGB(A) cruda. */
+/** Máscara de fondo (1 = es fondo) para una imagen RGB(A) cruda.
+ *
+ *  `rellenarHuecos` puede ser:
+ *    false / undefined  no rellenar nada encerrado (por defecto)
+ *    true               rellenar, con el área mínima histórica (900 px)
+ *    <número>           rellenar, con ese área mínima en píxeles
+ *
+ *  El número existe porque 900 px es la medida de un lazo de liana grande
+ *  (isla 10) y deja pasar enteros los huecos chicos: los que dejan las
+ *  ramitas de la 7 miden entre 50 y 570 px, y el fondo se les quedaba
+ *  adentro. El umbral va por isla porque lo que hay que dejar afuera —
+ *  un brillo especular encerrado — pesa distinto en cada lámina. */
 export function keyBackground(data, W, H, C, fondo, rellenarHuecos) {
   const dist = (p) =>
     Math.abs(data[p] - fondo[0]) + Math.abs(data[p + 1] - fondo[1]) + Math.abs(data[p + 2] - fondo[2]);
@@ -61,9 +72,10 @@ export function keyBackground(data, W, H, C, fondo, rellenarHuecos) {
      alcanza. Va apagado por defecto: en un arte con grandes superficies del
      color del fondo (nieve casi blanca sobre fondo casi blanco) esto le
      come pedazos a la nieve. El tamaño mínimo alcanza para no tocar brillos
-     especulares, pero no para separar nieve de hueco. */
-  const MIN_HUECO = 900;
+     especulares, pero no para separar nieve de hueco: eso se decide isla
+     por isla mirando el resultado, no con el umbral. */
   if (!rellenarHuecos) return bg;
+  const MIN_HUECO = typeof rellenarHuecos === "number" ? rellenarHuecos : 900;
   const visto = new Uint8Array(W * H);
   for (let y0 = 0; y0 < H; y0++) {
     for (let x0 = 0; x0 < W; x0++) {

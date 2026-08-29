@@ -24,32 +24,51 @@ const CANVAS = { w: 600, h: 445, baseX: 299.5, baseY: 214 };
 /* crop  : recorte del estado libre dentro de la lámina [x, y, ancho, alto]
    gap   : cuánto hay que correrse a la derecha para el estado apretado
    base  : la base de piedra DENTRO del recorte — cx, cy (su ecuador) y ancho
-   huecos: rellenar el fondo atrapado adentro de lazos cerrados. Apagado por
-           defecto: en un arte con grandes zonas del color del fondo (la nieve
-           de la 8) se las come. */
+   huecos: área mínima, en px de la lámina, del fondo atrapado adentro de un
+           lazo cerrado que hay que rellenar. Apagado por defecto: en un arte
+           con grandes zonas del color del fondo (la nieve de la 8, el núcleo
+           blanco del resplandor de la 1) se las come. Antes de prenderlo en
+           una isla nueva hay que MIRAR qué se rellenaría — lo encerrado y
+           casi blanco es tan seguido dibujo como hueco. */
 const SHEETS = {
+  /* SIN huecos a propósito: lo que queda encerrado entre la piedra y el aro
+     de resplandor es el núcleo brillante del resplandor mismo (cian casi
+     blanco, 236,255,255), no fondo. Rellenarlo le abre un agujero al halo. */
   island1:  { file: "btn-island1.png",  crop: [100, 120, 638, 396], gap: 806, base: { cx: 340, cy: 246, w: 549 } },
   island2:  { file: "btn-island2.jpg",  crop: [56, 139, 717, 387], gap: 810, base: { cx: 365, cy: 194, w: 549 } },
   /* La 3 trae un libro apoyado a la derecha que se sale de la huella: no
      cuenta como base, pero sí obliga a dejarle lugar en el lienzo. */
   island3:  { file: "btn-island3.png",  crop: [54,  87, 750, 479], gap: 811, base: { cx: 367, cy: 225, w: 570 } },
-  island4:  { file: "btn-island4.png",  crop: [63, 140, 706, 456], gap: 800, base: { cx: 353, cy: 219, w: 530 } },
+  /* huecos: las raicillas que cuelgan del musgo cierran lazos chicos contra
+     la base y dejaban el fondo adentro. */
+  island4:  { file: "btn-island4.png",  crop: [63, 140, 706, 456], gap: 800, base: { cx: 353, cy: 219, w: 530 }, huecos: 40 },
   island5:  { file: "btn-island5.png",  crop: [57, 115, 735, 439], gap: 807, base: { cx: 371, cy: 198, w: 522 } },
   island6:  { file: "btn-island6.png",  crop: [96,  84, 642, 443], gap: 808, base: { cx: 321, cy: 257, w: 514 } },
-  island7:  { file: "btn-island7.png",  crop: [75, 138, 691, 407], gap: 811, base: { cx: 352, cy: 195, w: 497 } },
+  /* huecos: las ramas de cerezo dan la vuelta al canto y cierran doce lazos
+     contra la piedra; adentro quedaba el fondo opaco, que es el bug que se
+     veía como manchas blancas entre las ramitas. Los huecos van de 51 a
+     566 px, muy por debajo de los 900 del umbral histórico. */
+  island7:  { file: "btn-island7.png",  crop: [75, 138, 691, 407], gap: 811, base: { cx: 352, cy: 195, w: 497 }, huecos: 40 },
   /* La 8 trae nieve blanca alrededor: contra el fondo blanco de la lámina no
      se distingue, así que el recorte se come la parte más pálida del manto.
-     Queda la nieve con sombra azulada, que es la que se ve. */
+     Queda la nieve con sombra azulada, que es la que se ve.
+     SIN huecos a propósito, por lo mismo: lo encerrado y casi blanco de esta
+     lámina es el manto de nieve y los ventisqueros del engranaje — es el
+     caso que documenta por qué esto no se puede prender para todas. */
   island8:  { file: "btn-island8.png",  crop: [26,  80, 766, 555], gap: 794, base: { cx: 383, cy: 278, w: 560 } },
   island9:  { file: "btn-island9.png",  crop: [25, 130, 780, 476], gap: 816, base: { cx: 398, cy: 262, w: 452 } },
-  /* huecos: las lianas cuelgan cerrando dos lazos, y el fondo que queda
-     atrapado adentro hay que rellenarlo aparte. */
-  island10: { file: "btn-island10.png", crop: [37,  77, 750, 537], gap: 801, base: { cx: 384, cy: 279, w: 480 }, huecos: true },
+  /* huecos: las lianas cuelgan cerrando varios lazos, y el fondo que queda
+     atrapado adentro hay que rellenarlo aparte. Con el umbral viejo de 900
+     se rellenaban los dos lazos grandes y quedaban sin tocar cinco chicos
+     (69 a 541 px) sobre la misma liana. */
+  island10: { file: "btn-island10.png", crop: [37,  77, 750, 537], gap: 801, base: { cx: 384, cy: 279, w: 480 }, huecos: 40 },
   /* La 12 es la más asimétrica: la roca está corrida a la izquierda y la arena
      se derrama a la derecha. El centro sale del disco, no de la silueta. */
   island12: { file: "btn-island12.png", crop: [85, 137, 750, 400], gap: 801, base: { cx: 338, cy: 220, w: 522 } },
   island13: { file: "btn-island13.png", crop: [59,  96, 728, 462], gap: 807, base: { cx: 364, cy: 240, w: 553 } },
-  island14: { file: "btn-island14.png", crop: [69, 102, 706, 460], gap: 801, base: { cx: 350, cy: 253, w: 558 } },
+  /* huecos: las argollas de cobre y el resorte del costado son lazos cerrados
+     de metal, y el fondo les quedaba adentro. */
+  island14: { file: "btn-island14.png", crop: [69, 102, 706, 460], gap: 801, base: { cx: 350, cy: 253, w: 558 }, huecos: 40 },
   island15: { file: "btn-island15.png", crop: [105, 79, 639, 479], gap: 814, base: { cx: 316, cy: 240, w: 601 } },
   island11: { file: "btn-island11.png", crop: [41, 231, 462, 336], gap: 492, base: { cx: 232, cy: 190, w: 433 } },
 };
@@ -107,7 +126,7 @@ async function importOne(id) {
       .extract({ left: cx0 + k * s.gap, top: cy0, width: cw, height: ch })
       .raw().toBuffer({ resolveWithObject: true });
     const { width: W, height: H, channels: C } = info;
-    const bg = keyBackground(data, W, H, C, fondo, s.huecos === true);
+    const bg = keyBackground(data, W, H, C, fondo, s.huecos ?? false);
 
     const rgba = Buffer.alloc(W * H * 4);
     for (let i = 0; i < W * H; i++) {
