@@ -20,7 +20,14 @@
  *   node scripts/detect-platforms.mjs <imagen> "x,y;x,y" [tolerancia] [areaMin]
  *
  * Ejemplo:
- *   node scripts/detect-platforms.mjs public/assets/islands/island2/sky.webp "49,75;32,49"
+ *   node scripts/detect-platforms.mjs public/assets/islands/island2/island.webp "49,75;32,49"
+ *
+ * OJO -- apuntá a island.webp, no a sky.webp (ver la misma nota en
+ * measure-pedestal.mjs). OJO 2 -- este script usa el ratio del BBOX del
+ * dibujo (0.590), que measure-pedestal.mjs señala como el incorrecto: el que
+ * calza con el anillo es el de la BASE (0.553). Usalo solo donde el anillo no
+ * se distingue y hay que guiarse por el color de la cara del disco; si el
+ * anillo se ve, medí con measure-pedestal.mjs.
  *
  * OJO: el match por color pierde la parte sombreada de abajo del disco, asi
  * que el centro sale hasta ~1 % alto. Verificar siempre con
