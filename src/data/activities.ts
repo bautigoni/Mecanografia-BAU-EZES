@@ -73,7 +73,47 @@ export type ShortcutStep = {
    *  atajo solo no siempre alcanza: Escape cierra un cartel o cierra el
    *  buscador según la tarea, y sin esto un "cerrá el buscador" terminaba
    *  mostrando un cartel de guardar que no venía a cuento. */
-  env?: "text-editor" | "find-box" | "dialog";
+  env?: "text-editor" | "find-box" | "dialog" | "browser-tabs";
+};
+
+/** Qué clase de página es una pestaña del navegador simulado.
+ *
+ *  Existe por una razón concreta: todas las pestañas se dibujaban igual —
+ *  el título arriba y "Contenido de la página" abajo —, así que cambiar de
+ *  pestaña no se veía y abrir una más daba lo mismo. Cada tipo tiene su
+ *  propia interfaz, con su ícono y sus colores, para que se note de un
+ *  vistazo en cuál estás parado. */
+export type ShortcutTabKind =
+  | "nueva"        // la pestaña en blanco que abre Ctrl+T
+  | "buscador"     // resultados de una búsqueda
+  | "video"        // reproductor
+  | "texto"        // tarea o documento
+  | "diccionario"
+  | "mapa"
+  | "mensajes"     // chat o correo
+  | "juego"
+  | "anuncio"      // publicidad molesta: está para cerrarla
+  | "clima"
+  | "calculadora";
+
+/** Una pestaña del navegador simulado. */
+export type ShortcutTab = {
+  /** Lo que dice la solapa. Corto: entra en pocos caracteres. */
+  title: string;
+  kind: ShortcutTabKind;
+  /** Contenido de la página. Cada tipo lee las líneas a su manera:
+   *    buscador     [0] lo buscado, [1…] títulos de resultados
+   *    texto        [0] título,     [1…] renglones
+   *    diccionario  [0] la palabra, [1] la definición
+   *    mapa         [0] el lugar,   [1] el detalle
+   *    mensajes     "Quién: qué dice", una por línea
+   *    video        [0] título,     [1] duración
+   *    juego        [0] nombre,     [1] detalle
+   *    anuncio      [0] el título grande, [1] la letra chica
+   *    clima        [0] temperatura, [1] detalle
+   *    calculadora  [0] la cuenta
+   *    nueva        no usa líneas */
+  lines?: string[];
 };
 
 /** El contenido del simulador de un nivel, para que no sea siempre el mismo
@@ -89,6 +129,15 @@ export type ShortcutScene = {
   page?: string;
   /** Lo que se busca ahí; se resalta al abrir el buscador. */
   find?: string;
+  /** Con qué pestañas arranca el navegador simulado (isla 12). */
+  tabs?: ShortcutTab[];
+  /** En cuál está parado al empezar. 0 si no se dice. */
+  activeTab?: number;
+  /** Qué va apareciendo al abrir algo, EN ORDEN: cada Ctrl+T y cada Ctrl+N
+   *  toman la siguiente de esta lista. Así abrir una pestaña lleva al lugar
+   *  que pedía la consigna en vez de a una página vacía sin sentido. Si la
+   *  lista se agota sale una pestaña nueva en blanco. */
+  opens?: ShortcutTab[];
 };
 
 export interface Activity {
@@ -1402,110 +1451,233 @@ const world11: Activity[] = [
   }),
 ];
 
-/* World 12 — Isla de ventanas y pestañas (engine de atajos). */
+/* World 12 — Isla de ventanas y pestañas (engine de atajos).
+ *
+ * Estos siete niveles eran listas de un mismo atajo repetido ("Ctrl+T" tres
+ * veces) sobre un navegador que se REINICIABA en cada intento: abrías una
+ * pestaña, desaparecía, y volvías a abrir la misma. No quedaba nada hecho,
+ * así que el atajo no servía para nada dentro del nivel.
+ *
+ * Ahora cada nivel es UNA tarea con `steps`, y el navegador conserva su
+ * estado de un paso al otro: lo que abrís sigue abierto y después lo cerrás
+ * vos. Las pestañas se declaran con su tipo (`kind`), y cada tipo se dibuja
+ * distinto — un buscador no se ve igual que un video ni que un anuncio —,
+ * que era la otra mitad del problema: con todas iguales, cambiar de pestaña
+ * no se notaba.
+ *
+ * Ojo con la consigna HABLADA de esta isla: sus atajos se los queda el
+ * navegador salvo que el nivel logre pantalla completa (Ctrl+W hasta cierra
+ * la pestaña y se lleva la partida), así que sigue pidiendo el teclado DEL
+ * JUEGO, que anda en los dos casos. La consigna escrita de cada paso nombra
+ * el atajo, que es lo que hay que aprender. */
 const world12: Activity[] = [
   makeActivity({
     worldId: "island12",
     levelNumber: 1,
-    title: "Nueva pestaña",
+    title: "Abrir sin perder lo de antes",
     subtitle: "Ctrl + T",
-    instruction: "Hacé el atajo para abrir una pestaña.",
-    /* Ojo con la consigna hablada de esta isla: sus atajos se los queda el
-       navegador (Ctrl+W hasta cierra la pestaña y se lleva la partida), así
-       que se pide tocar el teclado DEL JUEGO y no el de verdad. */
-    listenText: "Tocá Control y T en el teclado del juego para abrir una pestaña.",
-    targets: ["Ctrl+T", "Ctrl+T", "Ctrl+T"],
+    instruction: "Buscá dos cosas para la tarea sin cerrar la tarea.",
+    listenText: "Tocá Control y T en el teclado del juego para abrir una pestaña nueva. La tarea queda abierta.",
+    targets: ["Ctrl+T", "Ctrl+T"],
+    scene: {
+      tabs: [
+        { title: "Tarea de ciencias", kind: "texto", lines: ["El sistema solar", "Dibujar los ocho planetas y escribir cuál es el más grande."] },
+      ],
+      opens: [
+        { title: "Fotos del espacio", kind: "buscador", lines: ["fotos del sistema solar", "Los 8 planetas en orden", "Fotos reales del telescopio"] },
+        { title: "Mapa del cielo", kind: "mapa", lines: ["Cielo de esta noche", "Júpiter se ve hacia el este"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+T", prompt: "Necesitás una foto del sistema solar. Abrí una pestaña con Ctrl + T: mirá que la tarea NO se cierra, queda al lado." },
+      { combo: "Ctrl+T", prompt: "Te falta el mapa del cielo. Abrí otra con Ctrl + T. Ahora tenés las tres cosas abiertas a la vez." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 2,
-    description: "Abrí una pestaña nueva con Ctrl + T.",
+    description: "Ctrl + T abre una pestaña más: lo que ya tenías sigue ahí.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 2,
-    title: "Cerrar pestaña",
+    title: "Cerrar lo que no usás",
     subtitle: "Ctrl + W",
-    instruction: "Hacé el atajo para cerrar la pestaña.",
-    listenText: "Tocá Control y W en el teclado del juego para cerrar la pestaña.",
-    targets: ["Ctrl+W", "Ctrl+W", "Ctrl+W"],
+    instruction: "Tenés la pantalla llena. Dejá abierta sólo la tarea.",
+    listenText: "Tocá Control y W en el teclado del juego para cerrar la pestaña en la que estás parado.",
+    targets: ["Ctrl+W", "Ctrl+W"],
+    scene: {
+      /* Arranca parado en el anuncio a propósito: Ctrl+W cierra la pestaña
+         ACTIVA, y todavía no sabe cambiarse de pestaña (eso es el nivel 3).
+         Al cerrar una, el foco cae en la de al lado, que es la otra que hay
+         que cerrar, y termina solo en la tarea. */
+      activeTab: 1,
+      tabs: [
+        { title: "Tarea de lengua", kind: "texto", lines: ["Los animales", "Escribir cinco palabras con ll y cinco con y."] },
+        { title: "¡GANASTE!", kind: "anuncio", lines: ["¡Ganaste un celular nuevo!", "Hacé clic acá antes de que se termine"] },
+        { title: "Carreras 3D", kind: "juego", lines: ["Carreras 3D", "Seguís en la vuelta 2"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+W", prompt: "Estás parado en un anuncio que se abrió solo. Cerralo con Ctrl + W." },
+      { combo: "Ctrl+W", prompt: "Quedó el jueguito de ayer y te distrae. Cerralo también con Ctrl + W: vas a volver a la tarea." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 2,
-    description: "Cerrá una pestaña con Ctrl + W.",
+    description: "Ctrl + W cierra la pestaña en la que estás, y sólo esa.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 3,
-    title: "Cambiar de pestaña",
+    title: "Ir y volver entre pestañas",
     subtitle: "Ctrl + Tab",
-    instruction: "Hacé el atajo para cambiar de pestaña.",
-    listenText: "Tocá Control y Tab en el teclado del juego para cambiar de pestaña.",
+    instruction: "Juntá los dos datos que te faltan y volvé a la tarea.",
+    listenText: "Tocá Control y Tab en el teclado del juego para pasar a la pestaña siguiente.",
     targets: ["Ctrl+Tab", "Ctrl+Tab", "Ctrl+Tab"],
+    scene: {
+      tabs: [
+        { title: "Tu tarea", kind: "texto", lines: ["Geografía", "Qué quiere decir «afluente» y dónde queda el río Paraná."] },
+        { title: "Diccionario", kind: "diccionario", lines: ["afluente", "Río que desemboca en otro río más grande."] },
+        { title: "Mapa", kind: "mapa", lines: ["Río Paraná", "Cruza Misiones, Corrientes y Santa Fe"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+Tab", prompt: "El significado está en el diccionario, la pestaña de al lado. Pasá con Ctrl + Tab." },
+      { combo: "Ctrl+Tab", prompt: "Ahora fijate por dónde pasa el río: seguí con Ctrl + Tab hasta el mapa." },
+      { combo: "Ctrl+Tab", prompt: "Ya tenés los dos datos. Ctrl + Tab otra vez y volvés a la tarea: después de la última, arranca de nuevo por la primera." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 3,
-    description: "Pasá a la siguiente pestaña con Ctrl + Tab.",
+    description: "Ctrl + Tab va a la pestaña siguiente y, en la última, vuelve a la primera.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 4,
-    title: "Nueva ventana",
+    title: "Una ventana no es una pestaña",
     subtitle: "Ctrl + N",
-    instruction: "Hacé el atajo para abrir una ventana nueva.",
-    listenText: "Mantené Control y apretá N para abrir una ventana nueva.",
+    instruction: "Separá lo de la escuela de lo tuyo, en dos ventanas.",
     /* Este nivel era Alt+Tab y hubo que cambiarlo: Alt+Tab lo maneja el
        SISTEMA OPERATIVO, no el navegador, así que no hay forma de capturarlo
        — ni con pantalla completa ni con Keyboard Lock, que sólo alcanza a los
        atajos del navegador. Se apretaba y el alumno terminaba en otra
-       ventana, fuera del juego. Ctrl+N queda en el mismo tema, ventanas, y
-       ese sí se captura. */
-    targets: ["Ctrl+N", "Ctrl+N", "Ctrl+N"],
+       ventana, fuera del juego. Ctrl+N queda en el mismo tema y sí se
+       captura; además deja mostrar la diferencia que da nombre al nivel. */
+    listenText: "Tocá Control y N en el teclado del juego para abrir una ventana nueva, aparte de la que ya tenías.",
+    targets: ["Ctrl+N", "Ctrl+T"],
+    scene: {
+      tabs: [
+        { title: "Tarea de historia", kind: "texto", lines: ["25 de Mayo", "Contar con tus palabras qué pasó ese día."] },
+        { title: "Buscador", kind: "buscador", lines: ["qué pasó el 25 de mayo de 1810", "La Revolución de Mayo para chicos", "Línea de tiempo de 1810"] },
+      ],
+      opens: [
+        { title: "Videos de gatos", kind: "video", lines: ["Gatos haciendo lío", "4:12"] },
+        { title: "Chat con Meli", kind: "mensajes", lines: ["Meli: ¿hiciste la de historia?", "Vos: estoy en eso", "Meli: pasámela después 😅"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+N", prompt: "No querés mezclar el recreo con la tarea. Abrí una ventana nueva con Ctrl + N: aparece OTRA ventana entera, con su propia fila de pestañas." },
+      { combo: "Ctrl+T", prompt: "Estás parado en la ventana nueva. Abrí una pestaña acá con Ctrl + T y mirá dónde se suma: en ESTA ventana. La de la tarea quedó intacta." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Una ventana nueva es otra ventana entera, no una pestaña más.",
+    description: "Ctrl + N abre otra ventana entera; Ctrl + T sólo suma una pestaña a la ventana donde estás.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 5,
-    title: "Abrir y cerrar",
+    title: "Abrir, usar y cerrar",
     subtitle: "Ctrl + T / Ctrl + W",
-    instruction: "Hacé cada atajo que aparece.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
+    instruction: "Buscá dos datos y dejá la pantalla como la encontraste.",
+    listenText: "Abrí cada pestaña con Control y T, y cerrala con Control y W cuando ya no la necesites. Usá el teclado del juego.",
     targets: ["Ctrl+T", "Ctrl+W", "Ctrl+T", "Ctrl+W"],
+    scene: {
+      tabs: [
+        { title: "Tu redacción", kind: "texto", lines: ["Las vacaciones", "Escribimos en la bahía hasta que se nubló…"] },
+      ],
+      opens: [
+        { title: "Diccionario", kind: "diccionario", lines: ["bahía", "Entrada de mar en la costa. Se escribe con hache y con tilde en la i."] },
+        { title: "Clima", kind: "clima", lines: ["18°", "Mañana: nublado, puede llover a la tarde"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+T", prompt: "No sabés si «bahía» lleva hache. Abrí una pestaña con Ctrl + T para buscarlo en el diccionario." },
+      { combo: "Ctrl+W", prompt: "Ya lo viste y lo corregiste. Cerrá esa pestaña con Ctrl + W: si dejás todo abierto no encontrás nada." },
+      { combo: "Ctrl+T", prompt: "Ahora querés contar si mañana llueve. Abrí otra pestaña con Ctrl + T." },
+      { combo: "Ctrl+W", prompt: "Anotado. Cerrala con Ctrl + W y quedás de nuevo en tu redacción, que nunca se fue." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Combiná abrir y cerrar pestañas.",
+    description: "Abrir una pestaña para cada cosa, y cerrarla al terminar, es lo que mantiene la pantalla ordenada.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 6,
     title: "Reto de ventanas",
-    subtitle: "Todo mezclado",
-    instruction: "Hacé cada atajo de ventanas y pestañas.",
-    listenText: "Hacé cada atajo de ventanas y pestañas.",
-    targets: ["Ctrl+T", "Ctrl+Tab", "Ctrl+W", "Ctrl+N"],
+    subtitle: "Todo junto",
+    instruction: "Preparás la exposición del viernes sin perder nada de vista.",
+    listenText: "Hacé cada atajo que te pide el paso, con el teclado del juego.",
+    targets: ["Ctrl+T", "Ctrl+Tab", "Ctrl+Tab", "Ctrl+W", "Ctrl+N"],
+    scene: {
+      tabs: [
+        { title: "Exposición", kind: "texto", lines: ["Los volcanes", "Falta: una foto y ensayar en voz alta."] },
+        { title: "¡100 juegos!", kind: "anuncio", lines: ["¡Descargá 100 juegos gratis!", "Instalá ahora, sin permiso de nadie"] },
+      ],
+      opens: [
+        { title: "Fotos de volcanes", kind: "buscador", lines: ["volcán en erupción", "El Villarrica visto desde Pucón", "Cómo se forma un volcán"] },
+        { title: "Ensayo", kind: "texto", lines: ["Ensayo de la exposición", "1) Qué es un volcán. 2) La foto. 3) Una curiosidad."] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+T", prompt: "Te falta una imagen del volcán. Abrí una pestaña con Ctrl + T y buscala." },
+      { combo: "Ctrl+Tab", prompt: "Volvé a la exposición para ver qué más falta: Ctrl + Tab. Estabas en la última, así que arranca por la primera." },
+      { combo: "Ctrl+Tab", prompt: "Seguí con Ctrl + Tab: la próxima es el anuncio que se coló solo entre tus pestañas." },
+      { combo: "Ctrl+W", prompt: "Ese anuncio no lo abriste vos y no te sirve. Cerralo con Ctrl + W." },
+      { combo: "Ctrl+N", prompt: "Para ensayar sin distraerte, abrí una ventana nueva con Ctrl + N: ahí va a estar sólo el ensayo." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 5,
-    description: "Cerrá la isla manejando ventanas y pestañas.",
+    description: "Abrir, moverte, cerrar y separar en ventanas: los cuatro atajos en una sola tarea.",
   }),
   makeActivity({
     worldId: "island12",
     levelNumber: 7,
     title: "Malabares de pestañas",
     subtitle: "El reto más difícil",
-    instruction: "Hacé cada atajo que aparece, sin equivocarte.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
-    /* Un escalón sobre "Reto de ventanas": la misma familia de atajos pero en
-       una tanda más larga y alternando más. NO se suma Ctrl+Shift+Tab: ese se
-       enseña en la isla 14, que viene después en el orden pedagógico. */
-    targets: ["Ctrl+T", "Ctrl+N", "Ctrl+Tab", "Ctrl+W", "Ctrl+N", "Ctrl+T"],
+    instruction: "Ordená todo lo que quedó abierto de anoche.",
+    /* Un escalón sobre "Reto de ventanas": la misma familia de atajos, más
+       largo y alternando más. NO se suma Ctrl+Shift+Tab: ese se enseña en la
+       isla 14, que viene después en el orden pedagógico. */
+    listenText: "Hacé cada atajo que te pide el paso, con el teclado del juego.",
+    targets: ["Ctrl+W", "Ctrl+Tab", "Ctrl+T", "Ctrl+N", "Ctrl+T", "Ctrl+W"],
+    scene: {
+      activeTab: 2,
+      tabs: [
+        { title: "Matemática", kind: "texto", lines: ["Tarea de matemática", "Revisar: 128 × 4 y 96 ÷ 3."] },
+        { title: "Clase grabada", kind: "video", lines: ["Fracciones — clase del martes", "12:40"] },
+        { title: "¡Premio!", kind: "anuncio", lines: ["¡Sos el visitante un millón!", "Escribí tus datos para cobrar"] },
+      ],
+      opens: [
+        { title: "Calculadora", kind: "calculadora", lines: ["128 × 4 = 512"] },
+        { title: "Música", kind: "video", lines: ["Playlist de la tarde", "38 canciones"] },
+        { title: "Grupo de la escuela", kind: "mensajes", lines: ["Nico: ¿alguien tiene la 3?", "Vos: me dio 512", "Meli: a mí también 🙌"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+W", prompt: "Amaneciste con un premio falso en pantalla. Empezá por ahí: cerralo con Ctrl + W." },
+      { combo: "Ctrl+Tab", prompt: "Quedaste en la clase grabada, pero primero va la tarea. Pasá con Ctrl + Tab." },
+      { combo: "Ctrl+T", prompt: "Querés revisar una cuenta. Abrí la calculadora en una pestaña nueva con Ctrl + T." },
+      { combo: "Ctrl+N", prompt: "Terminaste con la escuela. Abrí una ventana nueva con Ctrl + N para lo tuyo, aparte de todo lo anterior." },
+      { combo: "Ctrl+T", prompt: "En esa ventana nueva abrí también el grupo de la escuela, con Ctrl + T." },
+      { combo: "Ctrl+W", prompt: "Te llaman a cenar. Cerrá el chat con Ctrl + W y dejá sólo la música sonando." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 6,
-    description: "Encadená seis atajos de ventanas y pestañas seguidos.",
+    description: "Seis atajos encadenados, y al final la pantalla queda como vos querías.",
   }),
 ];
 

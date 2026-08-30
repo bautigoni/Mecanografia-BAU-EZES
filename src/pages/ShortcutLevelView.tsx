@@ -31,17 +31,22 @@
  *
  * Virtual environments available:
  *   "text-editor"   — Ctrl+C / Ctrl+V / Ctrl+A / Ctrl+Z / Enter / Escape
- *   "browser-tabs"  — Ctrl+T / Ctrl+W / Ctrl+Tab
+ *   "browser-tabs"  — Ctrl+T / Ctrl+W / Ctrl+Tab / Ctrl+N  (ventanas Y pestañas)
  *   "find-box"      — Ctrl+F / Escape
- *   "app-switcher"  — Ctrl+N  (ventanas; antes Alt+Tab, ver arriba)
  *   "doc-editor"    — Ctrl+S / Ctrl+Y  (save / redo)
  *   "dialog"        — Enter / Escape
+ *
+ * El simulador de ventanas ("app-switcher") ya no existe: era una grilla de
+ * apps aparte, así que Ctrl+N abría una "ventana" en una pantalla donde no
+ * había ninguna pestaña y no se veía en qué se diferenciaba de Ctrl+T.
+ * Ahora el navegador virtual tiene las dos cosas — ventanas, y pestañas
+ * dentro de cada ventana — y esa diferencia queda a la vista.
  */
 
 import { Monitor, RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Activity, ShortcutDialog, ShortcutScene } from "../data/activities";
+import type { Activity, ShortcutDialog, ShortcutScene, ShortcutTab } from "../data/activities";
 import { assets } from "../utils/assets";
 import { getGameplayBackground } from "../data/worlds";
 import { StarCounter } from "../components/common/StarCounter";
@@ -55,7 +60,6 @@ type VirtualEnvKind =
   | "browser-tabs"
   | "find-box"
   | "doc-editor"
-  | "app-switcher"
   | "dialog";
 
 type Combo = {
@@ -73,12 +77,12 @@ const MOD_TOKENS = new Set(["ctrl", "control", "shift", "alt", "meta", "cmd"]);
 
 function comboEnv(mods: string[], key: string): VirtualEnvKind {
   const k = key.toLowerCase();
-  if (mods.includes("Alt") && k === "tab") return "app-switcher";
   if (mods.includes("Ctrl")) {
-    /* Ctrl+N y Ctrl+Shift+N abren una VENTANA, no una pestaña: van al
-       simulador de ventanas para que se vea la diferencia. */
-    if (k === "n") return "app-switcher";
-    if (k === "t" || k === "w" || k === "tab") return "browser-tabs";
+    /* Ctrl+N y Ctrl+Shift+N abren una VENTANA y Ctrl+T una PESTAÑA. Van al
+       mismo simulador justamente para que se vea la diferencia: la ventana
+       aparece al lado, con su propia fila de pestañas; la pestaña se suma
+       a la fila de la ventana donde estás. */
+    if (k === "t" || k === "w" || k === "tab" || k === "n") return "browser-tabs";
     if (k === "f") return "find-box";
     if (k === "s" || k === "y") return "doc-editor";
     if (k === "c" || k === "v" || k === "a" || k === "z") return "text-editor";
@@ -193,11 +197,10 @@ function useBloqueoDeTeclado(combos: Combo[], activo: boolean) {
 /* Clear, simulator-safe copy per combo (§6) — never just "hacé el atajo". */
 function comboActionHint(combo: Combo): string {
   const k = combo.key.toLowerCase();
-  if (combo.mods.includes("Alt") && k === "tab") return "Cambiá de ventana en el simulador (o tocá las teclas).";
   if (combo.mods.includes("Ctrl")) {
-    if (k === "t") return "Creá una pestaña dentro del simulador.";
-    if (k === "w") return "Cerrá la pestaña del simulador.";
-    if (k === "tab") return combo.mods.includes("Shift") ? "Volvé a la pestaña anterior del simulador." : "Cambiá de pestaña en el simulador.";
+    if (k === "t") return combo.mods.includes("Shift") ? "Recuperá la última pestaña que cerraste." : "Sumá una pestaña a la ventana donde estás.";
+    if (k === "w") return "Cerrá la pestaña en la que estás parado.";
+    if (k === "tab") return combo.mods.includes("Shift") ? "Volvé a la pestaña anterior del simulador." : "Pasá a la pestaña siguiente del simulador.";
     if (k === "a") return "Seleccioná todo el texto del cuadro.";
     if (k === "c") return "Copiá el texto seleccionado.";
     if (k === "v") return "Pegá el texto en el área de trabajo.";
@@ -205,7 +208,7 @@ function comboActionHint(combo: Combo): string {
     if (k === "y") return "Rehacé el cambio en el simulador.";
     if (k === "f") return "Abrí el buscador del simulador.";
     if (k === "s") return "Guardá el documento del simulador.";
-    if (k === "n") return "Abrí una ventana nueva en el simulador.";
+    if (k === "n") return combo.mods.includes("Shift") ? "Abrí una ventana privada, aparte de las otras." : "Abrí otra ventana entera, con su propia fila de pestañas.";
   }
   if (k === "enter") return "Aceptá con Enter en el simulador.";
   if (k === "escape") return "Cerrá con Escape en el simulador.";
@@ -835,8 +838,6 @@ function VirtualEnv({ combo, completed, triggerSignal, onVirtualAction, scene, d
       return <VirtualBrowser {...props} />;
     case "find-box":
       return <VirtualFindBox {...props} />;
-    case "app-switcher":
-      return <VirtualAppSwitcher {...props} />;
     case "doc-editor":
       return <VirtualDocEditor {...props} />;
     case "dialog":
@@ -846,111 +847,433 @@ function VirtualEnv({ combo, completed, triggerSignal, onVirtualAction, scene, d
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Virtual Browser (Ctrl+T, Ctrl+W, Ctrl+Tab, Ctrl+Shift+Tab)         */
-/* ------------------------------------------------------------------ */
-function VirtualBrowser({ combo, completed, triggerSignal, onAction }: EnvProps) {
-  const [tabs, setTabs] = useState(["Inicio", "Música", "Juegos"]);
-  const [active, setActive] = useState(0);
-  const [justActed, setJustActed] = useState(false);
-  useKeyboardTrigger(triggerSignal, () => act("kbd"));
+/* ================================================================== */
+/* Navegador virtual — VENTANAS y PESTAÑAS (Ctrl+T/W/Tab/N)           */
+/*                                                                     */
+/* Acá vivían dos simuladores separados y ninguno de los dos alcanzaba:*/
+/* uno tenía tres pestañas que se llamaban "Inicio", "Música" y        */
+/* "Juegos" y mostraban las tres el mismo cartel "Contenido de la      */
+/* página" — así, cambiar de pestaña no se veía —, y el otro era una   */
+/* grilla de aplicaciones donde Ctrl+N abría una "ventana" sin que se  */
+/* entendiera en qué se diferenciaba de abrir una pestaña.             */
+/*                                                                     */
+/* Ahora es uno solo, con la jerarquía de verdad: ventanas, y pestañas */
+/* dentro de cada ventana. Ctrl+N suma una ventana al lado, con su     */
+/* propia fila de solapas; Ctrl+T suma una pestaña a la ventana donde  */
+/* estás parado. Y cada pestaña se dibuja según su `kind`, con su      */
+/* ícono y su color, para que dos pestañas abiertas no se confundan.   */
+/* ================================================================== */
 
-  function act(label: string) {
-    if (completed || justActed) return;
-    setJustActed(true);
-    window.setTimeout(() => setJustActed(false), 600);
+type PestañaViva = ShortcutTab & { uid: number };
+type VentanaViva = {
+  uid: number;
+  etiqueta: string;
+  privada: boolean;
+  tabs: PestañaViva[];
+  activa: number;
+};
 
-    const key = combo.key.toLowerCase();
-    const hasShift = combo.mods.includes("Shift");
+/** Ícono y color de la solapa según el tipo de página. */
+const PESTAÑA_LOOK: Record<ShortcutTab["kind"], { icono: string; solapa: string }> = {
+  nueva:       { icono: "🗒️", solapa: "bg-slate-200 text-slate-700" },
+  buscador:    { icono: "🔎", solapa: "bg-sky-200 text-sky-900" },
+  video:       { icono: "▶️", solapa: "bg-rose-200 text-rose-900" },
+  texto:       { icono: "📄", solapa: "bg-amber-200 text-amber-900" },
+  diccionario: { icono: "📖", solapa: "bg-violet-200 text-violet-900" },
+  mapa:        { icono: "🗺️", solapa: "bg-emerald-200 text-emerald-900" },
+  mensajes:    { icono: "💬", solapa: "bg-teal-200 text-teal-900" },
+  juego:       { icono: "🎮", solapa: "bg-indigo-200 text-indigo-900" },
+  anuncio:     { icono: "📢", solapa: "bg-orange-300 text-orange-950" },
+  clima:       { icono: "🌤️", solapa: "bg-cyan-200 text-cyan-900" },
+  calculadora: { icono: "🔢", solapa: "bg-lime-200 text-lime-900" },
+};
 
-    if (key === "t") {
-      setTabs((prev) => [...prev, `Pestaña ${prev.length + 1}`]);
-      setActive((prev) => tabs.length); // new tab at end
-      onAction();
-    } else if (key === "w") {
-      setTabs((prev) => {
-        if (prev.length <= 1) { onAction(); return prev; }
-        const next = prev.filter((_, i) => i !== active);
-        setActive(Math.min(active, next.length - 1));
-        onAction();
-        return next;
-      });
-    } else if (key === "tab") {
-      setTabs((prev) => {
-        if (hasShift) {
-          setActive((a) => (a - 1 + prev.length) % prev.length);
-        } else {
-          setActive((a) => (a + 1) % prev.length);
-        }
-        onAction();
-        return prev;
-      });
-    } else {
-      onAction();
-    }
-    void label;
+/* Para los niveles que todavía no declaran su escena (isla 14): tres
+   pestañas distintas entre sí, que era el punto. */
+const PESTAÑAS_POR_DEFECTO: ShortcutTab[] = [
+  { title: "Buscador", kind: "buscador", lines: ["cómo hacen miel las abejas", "Las abejas y la colmena", "Video: dentro de un panal"] },
+  { title: "Clase grabada", kind: "video", lines: ["La colmena por dentro", "6:20"] },
+  { title: "Tu tarea", kind: "texto", lines: ["Ciencias naturales", "Escribir tres cosas que aprendiste sobre las abejas."] },
+];
+
+/** El contenido de una pestaña. Un tipo, una interfaz. */
+function PaginaVirtual({ tab }: { tab: ShortcutTab }) {
+  const l = tab.lines ?? [];
+  switch (tab.kind) {
+    case "buscador":
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] text-slate-600">
+            <span aria-hidden="true">🔎</span>
+            <span className="truncate">{l[0] ?? "buscar…"}</span>
+          </div>
+          {l.slice(1).map((r, i) => (
+            <div key={i} className="space-y-1">
+              <p className="truncate text-[11px] font-bold text-sky-700 underline underline-offset-2">{r}</p>
+              <div className="h-1 w-4/5 rounded-full bg-slate-200" />
+              <div className="h-1 w-3/5 rounded-full bg-slate-200" />
+            </div>
+          ))}
+        </div>
+      );
+    case "video":
+      return (
+        <div className="flex flex-col gap-1.5">
+          <div className="relative flex h-16 items-center justify-center rounded-lg bg-slate-800">
+            <span className="text-2xl text-white/90" aria-hidden="true">▶</span>
+            <span className="absolute inset-x-2 bottom-1.5 h-1 rounded-full bg-white/25">
+              <span className="block h-full w-1/3 rounded-full bg-rose-400" />
+            </span>
+          </div>
+          <p className="truncate text-[11px] font-bold text-text">{l[0] ?? "Video"}</p>
+          {l[1] && <p className="text-[10px] text-muted">{l[1]}</p>}
+        </div>
+      );
+    case "texto":
+      return (
+        <div className="rounded-lg border border-amber-200 bg-white p-2.5">
+          <p className="text-[11px] font-bold text-amber-900">{l[0] ?? "Documento"}</p>
+          {l[1] && <p className="mt-1 text-[11px] leading-snug text-slate-600">{l[1]}</p>}
+          <div className="mt-2 space-y-1">
+            <div className="h-1 w-full rounded-full bg-slate-200" />
+            <div className="h-1 w-4/5 rounded-full bg-slate-200" />
+            <div className="h-1 w-2/3 rounded-full bg-slate-200" />
+          </div>
+        </div>
+      );
+    case "diccionario":
+      return (
+        <div className="rounded-lg border-l-4 border-violet-400 bg-white p-2.5">
+          <p className="font-display text-base leading-tight text-violet-900">{l[0] ?? "palabra"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-violet-400">sustantivo</p>
+          {l[1] && <p className="mt-1 text-[11px] leading-snug text-slate-600">{l[1]}</p>}
+        </div>
+      );
+    case "mapa":
+      return (
+        <div className="relative h-[6.5rem] overflow-hidden rounded-lg bg-emerald-100">
+          <span
+            className="absolute inset-0 opacity-50"
+            style={{ background: "repeating-linear-gradient(45deg, transparent 0 10px, rgba(255,255,255,0.6) 10px 12px)" }}
+            aria-hidden="true"
+          />
+          <span className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 bg-sky-300/80" aria-hidden="true" />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-lg" aria-hidden="true">📍</span>
+          <div className="absolute inset-x-1.5 bottom-1.5 rounded-md bg-white/90 px-2 py-1">
+            <p className="truncate text-[11px] font-bold text-emerald-900">{l[0] ?? "Mapa"}</p>
+            {l[1] && <p className="truncate text-[10px] text-slate-600">{l[1]}</p>}
+          </div>
+        </div>
+      );
+    case "mensajes":
+      return (
+        <div className="flex flex-col gap-1.5">
+          {(l.length ? l : ["Alguien: ¡hola!"]).map((m, i) => {
+            const corte = m.indexOf(":");
+            const quien = corte > 0 ? m.slice(0, corte) : "";
+            const dice = corte > 0 ? m.slice(corte + 1).trim() : m;
+            const mio = quien.toLowerCase() === "vos";
+            return (
+              <span key={i} className={`flex ${mio ? "justify-end" : "justify-start"}`}>
+                <span
+                  className={[
+                    "max-w-[85%] rounded-2xl px-2.5 py-1 text-[11px] leading-snug",
+                    mio
+                      ? "rounded-br-sm bg-teal-500 text-white"
+                      : "rounded-bl-sm border border-teal-100 bg-white text-slate-700",
+                  ].join(" ")}
+                >
+                  {!mio && quien && <b className="mr-1 text-teal-700">{quien}:</b>}
+                  {dice}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      );
+    case "juego":
+      return (
+        <div className="flex h-[6.5rem] flex-col items-center justify-center gap-1 rounded-lg bg-gradient-to-b from-indigo-400 to-indigo-600">
+          <span className="text-2xl" aria-hidden="true">🏎️</span>
+          <p className="px-2 text-center text-[11px] font-bold text-white">{l[0] ?? "Juego"}</p>
+          {l[1] && (
+            <span className="rounded-full bg-white/25 px-2 py-0.5 text-[10px] font-bold text-white">{l[1]}</span>
+          )}
+        </div>
+      );
+    case "anuncio":
+      return (
+        <div className="flex h-[6.5rem] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-orange-400 bg-gradient-to-b from-amber-200 to-orange-300 text-center">
+          <span className="text-2xl" aria-hidden="true">🎁</span>
+          <p className="px-2 text-[11px] font-black uppercase leading-tight text-orange-950">{l[0] ?? "¡Oferta!"}</p>
+          {l[1] && <p className="px-2 text-[10px] leading-tight text-orange-900/80">{l[1]}</p>}
+          <span className="rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-orange-900">
+            publicidad
+          </span>
+        </div>
+      );
+    case "clima":
+      return (
+        <div className="flex h-[6.5rem] flex-col items-center justify-center gap-0.5 rounded-lg bg-gradient-to-b from-cyan-100 to-sky-200">
+          <span className="text-2xl" aria-hidden="true">🌤️</span>
+          <p className="font-display text-2xl leading-none text-sky-900">{l[0] ?? "—"}</p>
+          {l[1] && <p className="px-2 text-center text-[10px] text-sky-800">{l[1]}</p>}
+        </div>
+      );
+    case "calculadora":
+      return (
+        <div className="mx-auto w-full max-w-[11rem] rounded-lg bg-slate-800 p-2">
+          <div className="rounded bg-lime-200 px-2 py-1 text-right font-display text-sm text-slate-900">
+            {l[0] ?? "0"}
+          </div>
+          <div className="mt-1.5 grid grid-cols-4 gap-1" aria-hidden="true">
+            {["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", ".", "=", "+"].map((b) => (
+              <span key={b} className="rounded bg-slate-600 py-0.5 text-center text-[10px] font-bold text-white">
+                {b}
+              </span>
+            ))}
+          </div>
+        </div>
+      );
+    default:
+      return (
+        <div className="flex h-[6.5rem] flex-col items-center justify-center gap-2">
+          <span className="text-xl" aria-hidden="true">🗒️</span>
+          <span className="w-full max-w-[14rem] rounded-full border border-slate-200 bg-white px-3 py-1 text-center text-[10px] text-slate-400">
+            Buscá o escribí una dirección
+          </span>
+          <p className="text-[10px] text-muted">Pestaña nueva, todavía vacía</p>
+        </div>
+      );
+  }
+}
+
+/** Una ventana: barra, fila de solapas y la página de la solapa activa. */
+function MarcoVentana({
+  ventana, enfocada, varias, destello,
+}: { ventana: VentanaViva; enfocada: boolean; varias: boolean; destello: boolean }) {
+  const activa = ventana.tabs[ventana.activa];
+  return (
+    <div
+      className={[
+        "flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-sm transition",
+        ventana.privada ? "border-slate-600 bg-slate-700" : "border-white/80 bg-white/85",
+        /* La que NO tiene el foco se apaga: así se ve de un vistazo en cuál
+           de las dos ventanas van a caer Ctrl+T y Ctrl+W. */
+        enfocada ? "ring-2 ring-accent/45" : "opacity-60 saturate-50",
+        destello && enfocada ? "animate-reward-pop" : "",
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "flex items-center gap-1.5 px-2 py-1",
+          ventana.privada ? "bg-slate-800" : "bg-gradient-to-b from-white/90 to-bg-soft/70",
+        ].join(" ")}
+      >
+        <span className="flex shrink-0 gap-1" aria-hidden="true">
+          <span className="block h-2 w-2 rounded-full bg-rose-300" />
+          <span className="block h-2 w-2 rounded-full bg-amber-300" />
+          <span className="block h-2 w-2 rounded-full bg-emerald-300" />
+        </span>
+        <span
+          className={[
+            "truncate text-[10px] font-bold uppercase tracking-wider",
+            ventana.privada ? "text-slate-200" : "text-muted",
+          ].join(" ")}
+        >
+          {ventana.privada && <span aria-hidden="true">🕶️ </span>}
+          {ventana.etiqueta}
+        </span>
+        {varias && enfocada && (
+          <span className="ml-auto shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-bold text-accent-strong">
+            acá estás
+          </span>
+        )}
+      </div>
+
+      {/* Solapas. No se pueden clickear a propósito: si se pudiera saltar de
+          pestaña con el mouse, el nivel de Ctrl+Tab se resolvería sin hacer
+          el atajo, que es justo lo que hay que aprender. */}
+      <div className="flex gap-1 overflow-x-auto px-1.5 pt-1.5">
+        {ventana.tabs.length === 0 && (
+          <span className="px-1 py-1 text-[10px] italic text-muted">sin pestañas</span>
+        )}
+        {ventana.tabs.map((t, i) => {
+          const look = PESTAÑA_LOOK[t.kind] ?? PESTAÑA_LOOK.nueva;
+          const esActiva = i === ventana.activa;
+          return (
+            <span
+              key={t.uid}
+              className={[
+                "flex shrink-0 items-center gap-1 rounded-t-lg px-2 py-1 text-[10px] font-bold transition",
+                esActiva ? `${look.solapa} shadow-sm` : "bg-white/45 text-muted",
+              ].join(" ")}
+            >
+              <span aria-hidden="true">{look.icono}</span>
+              <span className="max-w-[5.5rem] truncate">{t.title}</span>
+            </span>
+          );
+        })}
+      </div>
+
+      <div className={["min-h-[7.5rem] p-2", ventana.privada ? "bg-slate-600" : "bg-white/70"].join(" ")}>
+        {activa ? (
+          <PaginaVirtual tab={activa} />
+        ) : (
+          <div className="flex min-h-[7rem] flex-col items-center justify-center gap-1 text-center">
+            <span className="text-xl" aria-hidden="true">🌥️</span>
+            <p className="text-[11px] font-semibold text-muted">No quedó ninguna pestaña abierta</p>
+            <p className="text-[10px] text-muted/70">Abrí una con Ctrl + T</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VirtualBrowser({ combo, completed, triggerSignal, onAction, scene, stepIndex }: EnvProps) {
+  const uidRef = useRef(0);
+  const nuevoUid = () => { uidRef.current += 1; return uidRef.current; };
+
+  const [ventanas, setVentanas] = useState<VentanaViva[]>(() => {
+    const base = scene?.tabs ?? PESTAÑAS_POR_DEFECTO;
+    return [{
+      uid: nuevoUid(),
+      etiqueta: "Ventana 1",
+      privada: false,
+      tabs: base.map((t) => ({ ...t, uid: nuevoUid() })),
+      activa: Math.min(Math.max(0, scene?.activeTab ?? 0), Math.max(0, base.length - 1)),
+    }];
+  });
+  const [foco, setFoco] = useState(0);
+  const [ocupado, setOcupado] = useState(false);
+
+  /* Lo que va a ir apareciendo, en orden: cada Ctrl+T y cada Ctrl+N toman de
+     acá. En un ref y no en estado porque consumirla siempre coincide con un
+     cambio de ventanas, que ya provoca el re-render. */
+  const colaRef = useRef<ShortcutTab[]>([...(scene?.opens ?? [])]);
+  /* Lo cerrado, para que Ctrl+Shift+T (isla 14) recupere algo de verdad. */
+  const cerradasRef = useRef<PestañaViva[]>([]);
+
+  useKeyboardTrigger(triggerSignal, () => act());
+
+  /* El paso avanzó: se suelta el freno anti-doble-clic. Sin esto se comía el
+     primer intento del paso siguiente, porque el freno dura más que la pausa
+     que hace el nivel para mostrar lo que acabás de hacer. */
+  useEffect(() => { setOcupado(false); }, [stepIndex]);
+
+  function siguienteDeLaCola(privada = false): ShortcutTab {
+    const next = colaRef.current.shift();
+    if (next) return next;
+    return { title: privada ? "Pestaña privada" : "Pestaña nueva", kind: "nueva" };
   }
 
-  const actionLabel =
-    combo.key.toLowerCase() === "t" ? "Abrir pestaña" :
-    combo.key.toLowerCase() === "w" ? "Cerrar pestaña" :
-    "Cambiar pestaña";
+  function abrirPestaña(restaurar: boolean) {
+    const recuperada = restaurar ? cerradasRef.current.pop() : undefined;
+    const tab: PestañaViva = recuperada ?? { ...siguienteDeLaCola(), uid: nuevoUid() };
+    setVentanas((prev) =>
+      prev.map((v, i) => (i === foco ? { ...v, tabs: [...v.tabs, tab], activa: v.tabs.length } : v)),
+    );
+  }
+
+  function cerrarPestaña() {
+    const v = ventanas[foco];
+    if (!v || v.tabs.length === 0) return;
+    cerradasRef.current.push(v.tabs[v.activa]);
+    /* Cerrar la última pestaña de una ventana cierra la ventana, igual que en
+       el navegador de verdad. La excepción es la única ventana que queda: ahí
+       el navegador se queda vacío en vez de desaparecer, porque hacer
+       desaparecer el simulador entero dejaría al chico sin nada que mirar. */
+    if (v.tabs.length === 1 && ventanas.length > 1) {
+      setVentanas((prev) => prev.filter((_, i) => i !== foco));
+      setFoco((f) => Math.max(0, f - 1));
+      return;
+    }
+    setVentanas((prev) =>
+      prev.map((w, i) => {
+        if (i !== foco) return w;
+        const tabs = w.tabs.filter((_, j) => j !== w.activa);
+        return { ...w, tabs, activa: Math.max(0, Math.min(w.activa, tabs.length - 1)) };
+      }),
+    );
+  }
+
+  function moverse(paso: number) {
+    setVentanas((prev) =>
+      prev.map((v, i) =>
+        i !== foco || v.tabs.length === 0
+          ? v
+          : { ...v, activa: (v.activa + paso + v.tabs.length) % v.tabs.length },
+      ),
+    );
+  }
+
+  function abrirVentana(privada: boolean) {
+    const tab: PestañaViva = { ...siguienteDeLaCola(privada), uid: nuevoUid() };
+    const nueva: VentanaViva = {
+      uid: nuevoUid(),
+      etiqueta: privada ? "Ventana privada" : `Ventana ${ventanas.length + 1}`,
+      privada,
+      tabs: [tab],
+      activa: 0,
+    };
+    setVentanas((prev) => [...prev, nueva]);
+    setFoco(ventanas.length); // el foco se va a la ventana nueva, como en serio
+  }
+
+  function act() {
+    if (completed || ocupado) return;
+    setOcupado(true);
+    window.setTimeout(() => setOcupado(false), 600);
+
+    const k = combo.key.toLowerCase();
+    const shift = combo.mods.includes("Shift");
+    if (k === "t") abrirPestaña(shift);
+    else if (k === "w") cerrarPestaña();
+    else if (k === "tab") moverse(shift ? -1 : 1);
+    else if (k === "n") abrirVentana(shift);
+    onAction();
+  }
+
+  const varias = ventanas.length > 1;
+  const abiertas = ventanas.reduce((n, v) => n + v.tabs.length, 0);
+  const k = combo.key.toLowerCase();
+  const shift = combo.mods.includes("Shift");
+  const etiquetaAccion =
+    k === "t" ? (shift ? "Reabrir la última que cerraste" : "Abrir pestaña") :
+    k === "w" ? "Cerrar esta pestaña" :
+    k === "tab" ? (shift ? "Pestaña anterior" : "Pestaña siguiente") :
+    k === "n" ? (shift ? "Abrir ventana privada" : "Abrir ventana nueva") :
+    "Hacer la acción";
 
   return (
     <div className="glass-surface flex flex-col gap-3 p-4">
-      {/* Browser toolbar */}
-      <div className="flex items-center gap-1 rounded-xl bg-white/80 p-1.5 shadow-sm">
-        {tabs.map((tab, i) => (
-          <button
-            key={`${tab}-${i}`}
-            type="button"
-            className={[
-              "group relative flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-              i === active
-                ? "bg-gradient-to-b from-accent-sky/30 to-accent/20 text-text shadow-sm"
-                : "text-muted hover:bg-white/60 hover:text-text",
-              justActed && i === active ? "animate-reward-pop" : "",
-            ].join(" ")}
-            onClick={() => setActive(i)}
-          >
-            <span className="truncate max-w-[6rem] sm:max-w-[8rem]">{tab}</span>
-            {tabs.length > 1 && (
-              <span
-                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-muted transition hover:bg-rose/20 hover:text-rose"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (combo.key.toLowerCase() === "w") act("close");
-                }}
-              >
-                ×
-              </span>
-            )}
-          </button>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+        {varias ? `${ventanas.length} ventanas` : "1 ventana"} ·{" "}
+        {abiertas} {abiertas === 1 ? "pestaña abierta" : "pestañas abiertas"}
+      </p>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        {ventanas.map((v, i) => (
+          <MarcoVentana
+            key={v.uid}
+            ventana={v}
+            enfocada={i === foco}
+            varias={varias}
+            destello={ocupado}
+          />
         ))}
-        <button
-          type="button"
-          className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-lg font-bold text-muted transition hover:bg-accent/15 hover:text-accent-strong"
-          onClick={() => combo.key.toLowerCase() === "t" && act("new")}
-        >
-          +
-        </button>
-      </div>
-      {/* Browser content */}
-      <div className="flex min-h-[8rem] flex-col items-center justify-center rounded-xl bg-white/70 p-4 text-center shadow-inner">
-        <p className="font-display text-lg text-text">{tabs[active]}</p>
-        <p className="mt-1 text-xs text-muted">Contenido de la página</p>
       </div>
       <button
         type="button"
         className={[
           "self-center rounded-full px-4 py-2 text-sm font-bold shadow-btn transition",
-          justActed
-            ? "bg-gradient-to-br from-mint to-accent-teal text-white scale-95"
+          ocupado
+            ? "scale-95 bg-gradient-to-br from-mint to-accent-teal text-white"
             : "bg-gradient-to-br from-accent to-accent-strong text-white hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0",
         ].join(" ")}
-        onClick={() => act("click")}
+        onClick={act}
       >
-        {actionLabel}
+        {etiquetaAccion}
       </button>
     </div>
   );
@@ -1045,74 +1368,6 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction, scene }: En
         {combo.key.toLowerCase() === "f"
           ? open ? "Buscar abierto ✓" : "Abrir buscador"
           : "Cerrar buscador"}
-      </button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Virtual App Switcher (Alt+Tab — simulated, OS-safe)                 */
-/* ------------------------------------------------------------------ */
-const VIRT_APPS = ["TYPELY", "Música", "Notas", "Dibujo"];
-
-function VirtualAppSwitcher({ combo, completed, triggerSignal, onAction }: EnvProps) {
-  const [ventanas, setVentanas] = useState(VIRT_APPS);
-  const [focused, setFocused] = useState(0);
-  const [switching, setSwitching] = useState(false);
-  useKeyboardTrigger(triggerSignal, () => act());
-
-  const esNueva = combo.key.toLowerCase() === "n";
-  const incognito = esNueva && combo.mods.includes("Shift");
-
-  function act() {
-    if (completed) return;
-    setSwitching(true);
-    if (esNueva) {
-      /* Ctrl+N abre una ventana NUEVA y el foco se va a ella: eso es lo que
-         hay que ver, que aparece una ventana más y no una pestaña. */
-      setVentanas((prev) => {
-        const nombre = incognito ? "Ventana privada" : `Ventana ${prev.length + 1}`;
-        setFocused(prev.length);
-        return [...prev, nombre];
-      });
-    } else {
-      setFocused((f) => (f + 1) % ventanas.length);
-    }
-    window.setTimeout(() => setSwitching(false), 400);
-    onAction();
-  }
-
-  const iconos = ["🎮", "🎵", "📝", "🎨"];
-
-  return (
-    <div className="glass-surface flex flex-col items-center gap-3 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted">Ventanas abiertas:</p>
-      <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-        {ventanas.map((app, i) => (
-          <div
-            key={`${app}-${i}`}
-            className={[
-              "flex flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/60 p-3 text-xs font-semibold text-text shadow-sm transition",
-              i === focused ? "ring-2 ring-accent bg-gradient-to-b from-accent-sky/25 to-accent/15 scale-105" : "",
-              switching && i === focused ? "animate-reward-pop" : "",
-            ].join(" ")}
-          >
-            <span className="text-2xl">{iconos[i] ?? (incognito && i === ventanas.length - 1 ? "🕶️" : "🪟")}</span>
-            <span className="truncate max-w-full">{app}</span>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        className={[
-          "self-center rounded-full px-4 py-2 text-sm font-bold shadow-btn transition",
-          switching
-            ? "bg-gradient-to-br from-mint to-accent-teal text-white scale-95"
-            : "bg-gradient-to-br from-accent to-accent-strong text-white hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0",
-        ].join(" ")}
-        onClick={act}
-      >
-        {esNueva ? (incognito ? "Abrir ventana privada" : "Abrir ventana nueva") : "Cambiar de ventana"}
       </button>
     </div>
   );
