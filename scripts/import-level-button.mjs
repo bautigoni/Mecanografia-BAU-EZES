@@ -97,12 +97,30 @@ const SHEETS = {
      (69 a 541 px) sobre la misma liana. */
   island10: { file: "btn-island10.png", crop: [37,  77, 750, 537], gap: 801, base: { cx: 384, cy: 279, w: 480 }, huecos: 40 },
   /* La 12 es la más asimétrica: la roca está corrida a la izquierda y la arena
-     se derrama a la derecha. El centro sale del disco, no de la silueta. */
-  /* SIN halo a propósito: acá el crema pálido de alrededor no es neblina
-     sino la arena, que es dibujo y arranca pegada al color del fondo. Con
-     el desvanecido prendido la arena se volvía translúcida — el mismo caso
-     que la nieve de la 8. */
-  island12: { file: "btn-island12.png", crop: [85, 137, 750, 400], gap: 801, base: { cx: 338, cy: 220, w: 522 } },
+     se derrama a la derecha. El centro sale del disco, no de la silueta.
+
+     tolerancias: al fondo de esta lámina le sobraba un manchón gris pegado al
+     borde derecho de la arena, y una bolsita entre el cactus y el borde. Los
+     umbrales de fábrica llegan a distancia 58 y el manchón está en 77, así
+     que no lo alcanzaban. Se estiran a 140 con la saturación apretada a 26,
+     que es lo que de verdad los separa: lo que sobró es gris (saturación 6 a
+     21) y todo el dibujo de esta isla es cálido — la arena más pálida está en
+     53 y la roca en 158. Los 140 salen de la cuña que queda entre el brazo
+     del cactus y el borde, que llega a 116; con 110 sobrevivía.
+
+     Ojo con bajar la saturación de 26 o subir mucho la distancia: la arena
+     empieza en distancia 106 y las piedras en 125, o sea que por distancia
+     sola ya estarían adentro. Lo que las salva es el tinte, y por eso hacen
+     falta las dos condiciones juntas.
+
+     huecos: la bolsita del cactus está encerrada entre el cactus y la arena,
+     así que la inundación no llega desde el borde y hay que rellenarla aparte.
+
+     SIN halo a propósito: el crema de alrededor no es neblina de suelo sino
+     la arena misma, que es dibujo. Con el desvanecido prendido se volvía
+     translúcida — el mismo caso que la nieve de la 8. */
+  island12: { file: "btn-island12.png", crop: [85, 137, 750, 400], gap: 801, base: { cx: 338, cy: 220, w: 522 },
+              tolerancias: { duroDist: 140, duroSat: 26, blandoDist: 140, blandoSat: 26 }, huecos: 20 },
   island13: { file: "btn-island13.png", crop: [59,  96, 728, 462], gap: 807, base: { cx: 364, cy: 240, w: 553 } },
   /* huecos: las argollas de cobre y el resorte del costado son lazos cerrados
      de metal, y el fondo les quedaba adentro. */
