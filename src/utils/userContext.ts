@@ -119,34 +119,34 @@ export const GRADE_WORLDS: Record<GradeId, Activity["worldId"][]> = {
   // 4º EP: full typing + email + searches
   "4ep": [
     "island1", "island6", "island2", "island7", "island13",
-    "island3", "island8", "island4", "island9", "island10",
+    "island3", "island8", "island9", "island4", "island10",
   ],
 
   // 5º EP: all typing + mouse skills + basic shortcuts
   "5ep": [
     "island1", "island6", "island2", "island7", "island13",
-    "island3", "island8", "island4", "island9", "island10",
+    "island3", "island8", "island9", "island4", "island10",
     "island5", "island11",
   ],
 
   // 6º EP: everything
   "6ep": [
     "island1", "island6", "island2", "island7", "island13",
-    "island3", "island8", "island4", "island9", "island10",
+    "island3", "island8", "island9", "island4", "island10",
     "island5", "island11", "island12", "island14", "island15",
   ],
 
   // Secundaria: same as 6EP (could add advanced content later)
   sec: [
     "island1", "island6", "island2", "island7", "island13",
-    "island3", "island8", "island4", "island9", "island10",
+    "island3", "island8", "island9", "island4", "island10",
     "island5", "island11", "island12", "island14", "island15",
   ],
 
   // Libre: all worlds (teachers, admins, free exploration)
   libre: [
     "island1", "island6", "island2", "island7", "island13",
-    "island3", "island8", "island4", "island9", "island10",
+    "island3", "island8", "island9", "island4", "island10",
     "island5", "island11", "island12", "island14", "island15",
   ],
 };

@@ -96,18 +96,20 @@ type WorldMetaEntry = {
 /* Titles for the 10 expansion islands, in island6 → island15 order. */
 
 /* =====================================================================
-   Pedagogical world order (difficulty, easiest → hardest):
+   Pedagogical world order (difficulty, easiest → hardest).
+   Copia legible de WORLD_PEDAGOGY_ORDER, que es la fuente de verdad — si
+   se cambia una, hay que cambiar la otra:
      1  island1  – basic letters / home row / vowels
      2  island6  – writing: syllables → short words
      3  island2  – short words (3–6 letters, phrases)
      4  island7  – long words + longer phrases
      5  island13 – friendly messages in context
-     6  island3  – library: uppercase, ñ, accents, ¿¡
-     7  island8  – signs / punctuation
-     8  island4  – symbols / code (@ + full punctuation mix)
+     6  island5  – digital / mouse skills
+     7  island3  – library: uppercase, ñ, accents, ¿¡
+     8  island8  – signs / punctuation
      9  island9  – email writing
-    10  island10 – browser searches
-    11  island5  – digital / mouse skills
+    10  island4  – symbols / code (@ + full punctuation mix)
+    11  island10 – browser searches
     12  island11 – basic keyboard commands (Enter → Ctrl+F)
     13  island12 – windows & tabs shortcuts (Ctrl+T/W/Tab)
     14  island14 – advanced shortcuts
@@ -127,8 +129,8 @@ const worldMapPositions: Record<Activity["worldId"], MapPosition> = {
   island5:  { x: 106, y: 49 },  // #6
   island3:  { x: 126, y: 13 },  // #7
   island8:  { x: 146, y: 49 },  // #8
-  island4:  { x: 166, y: 13 },  // #9
-  island9:  { x: 186, y: 49 },  // #10
+  island9:  { x: 166, y: 13 },  // #9
+  island4:  { x: 186, y: 49 },  // #10
   island10: { x: 206, y: 13 },  // #11
   island11: { x: 226, y: 49 },  // #12
   island12: { x: 246, y: 13 },  // #13
@@ -247,8 +249,8 @@ export const WORLD_PEDAGOGY_ORDER: ReadonlyArray<Activity["worldId"]> = [
   "island5",   // 6  digital / mouse skills
   "island3",   // 7  uppercase, ñ, accents
   "island8",   // 8  punctuation & signs
-  "island4",   // 9  symbols & code
-  "island9",   // 10 email writing
+  "island9",   // 9  email writing
+  "island4",   // 10 symbols & code
   "island10",  // 11 browser searches
   "island11",  // 12 basic keyboard commands
   "island12",  // 13 windows & tabs
