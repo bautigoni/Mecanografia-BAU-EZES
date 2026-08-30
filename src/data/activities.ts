@@ -1449,15 +1449,21 @@ const world12: Activity[] = [
   makeActivity({
     worldId: "island12",
     levelNumber: 4,
-    title: "Cambiar de ventana",
-    subtitle: "Alt + Tab",
-    instruction: "Hacé el atajo para cambiar de ventana.",
-    listenText: "Tocá Alt y Tab en el teclado del juego para cambiar de ventana.",
-    targets: ["Alt+Tab", "Alt+Tab", "Alt+Tab"],
+    title: "Nueva ventana",
+    subtitle: "Ctrl + N",
+    instruction: "Hacé el atajo para abrir una ventana nueva.",
+    listenText: "Mantené Control y apretá N para abrir una ventana nueva.",
+    /* Este nivel era Alt+Tab y hubo que cambiarlo: Alt+Tab lo maneja el
+       SISTEMA OPERATIVO, no el navegador, así que no hay forma de capturarlo
+       — ni con pantalla completa ni con Keyboard Lock, que sólo alcanza a los
+       atajos del navegador. Se apretaba y el alumno terminaba en otra
+       ventana, fuera del juego. Ctrl+N queda en el mismo tema, ventanas, y
+       ese sí se captura. */
+    targets: ["Ctrl+N", "Ctrl+N", "Ctrl+N"],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Cambiá de ventana con Alt + Tab.",
+    description: "Una ventana nueva es otra ventana entera, no una pestaña más.",
   }),
   makeActivity({
     worldId: "island12",
@@ -1479,7 +1485,7 @@ const world12: Activity[] = [
     subtitle: "Todo mezclado",
     instruction: "Hacé cada atajo de ventanas y pestañas.",
     listenText: "Hacé cada atajo de ventanas y pestañas.",
-    targets: ["Ctrl+T", "Ctrl+Tab", "Ctrl+W", "Alt+Tab"],
+    targets: ["Ctrl+T", "Ctrl+Tab", "Ctrl+W", "Ctrl+N"],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 5,
@@ -1495,7 +1501,7 @@ const world12: Activity[] = [
     /* Un escalón sobre "Reto de ventanas": la misma familia de atajos pero en
        una tanda más larga y alternando más. NO se suma Ctrl+Shift+Tab: ese se
        enseña en la isla 14, que viene después en el orden pedagógico. */
-    targets: ["Ctrl+T", "Alt+Tab", "Ctrl+Tab", "Ctrl+W", "Alt+Tab", "Ctrl+T"],
+    targets: ["Ctrl+T", "Ctrl+N", "Ctrl+Tab", "Ctrl+W", "Ctrl+N", "Ctrl+T"],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 6,
@@ -1686,7 +1692,10 @@ const world14: Activity[] = [
     subtitle: "Todos los atajos",
     instruction: "Hacé cada atajo que aparece.",
     listenText: "Hacé cada atajo que aparece en pantalla.",
-    targets: ["Ctrl+C", "Ctrl+Shift+Tab", "Alt+Tab", "Ctrl+S", "Ctrl+Z"],
+    /* Sin Alt+Tab: lo maneja el sistema operativo y no hay forma de
+       capturarlo, así que sacaba al alumno del juego (ver la nota del nivel 4
+       de la isla 12). Lo reemplaza Ctrl+Shift+N, que ya es de esta isla. */
+    targets: ["Ctrl+C", "Ctrl+Shift+Tab", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Z"],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 6,
@@ -1701,7 +1710,7 @@ const world14: Activity[] = [
     listenText: "Hacé cada atajo que aparece en pantalla.",
     /* Un escalón sobre "Reto experto": tanda más larga y cargada de atajos de
        TRES teclas, que son los que más cuestan. */
-    targets: ["Ctrl+Shift+T", "Ctrl+Y", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Shift+Tab", "Alt+Tab"],
+    targets: ["Ctrl+Shift+T", "Ctrl+Y", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Shift+Tab", "Ctrl+T"],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 7,

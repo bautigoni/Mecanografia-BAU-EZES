@@ -15,16 +15,25 @@
  * Ctrl+Tab cambia de pestaña y Alt+Tab cambia de ventana. En esos casos el
  * keydown ni siquiera llega a la página, así que tampoco se puede puntuar.
  *
- * Por eso `esReservado()` los marca y, cuando toca uno, el nivel pide
- * explícitamente que se use el teclado EN PANTALLA en vez del teclado real,
- * y no invita a apretar las teclas físicas. Los que sí se pueden frenar
- * (Ctrl+A/C/V/Z/F/S/Y, Enter, Escape) siguen andando con el teclado real.
+ * Para esos hay UNA forma de capturarlos de verdad, y es la que usa este
+ * archivo: la API Keyboard Lock (`navigator.keyboard.lock`), que sólo
+ * funciona con la página en PANTALLA COMPLETA. Con eso Ctrl+T, Ctrl+W,
+ * Ctrl+N y Ctrl+Tab llegan a la página y el navegador no los ejecuta.
+ *
+ * Tiene dos límites que conviene conocer antes de tocar esto:
+ *   - Es de Chromium (Chrome, Edge, Chromebook). Firefox y Safari no la
+ *     tienen, y ahí se cae al teclado de la pantalla, que sigue estando.
+ *   - Alt+Tab es del sistema operativo, no del navegador, y NO se puede
+ *     capturar con ninguna técnica. Por eso ya no se usa en ningún nivel.
+ *
+ * Los atajos que sí se pueden frenar sin nada de esto (Ctrl+A/C/V/Z/F/S/Y,
+ * Enter, Escape) andan con el teclado real siempre, sin pantalla completa.
  *
  * Virtual environments available:
  *   "text-editor"   — Ctrl+C / Ctrl+V / Ctrl+A / Ctrl+Z / Enter / Escape
- *   "browser-tabs"  — Ctrl+T / Ctrl+W / Ctrl+Tab / Ctrl+Shift+Tab
+ *   "browser-tabs"  — Ctrl+T / Ctrl+W / Ctrl+Tab
  *   "find-box"      — Ctrl+F / Escape
- *   "app-switcher"  — Alt+Tab  (simulated + fallback on-screen button)
+ *   "app-switcher"  — Ctrl+N  (ventanas; antes Alt+Tab, ver arriba)
  *   "doc-editor"    — Ctrl+S / Ctrl+Y  (save / redo)
  *   "dialog"        — Enter / Escape
  */
@@ -66,6 +75,9 @@ function comboEnv(mods: string[], key: string): VirtualEnvKind {
   const k = key.toLowerCase();
   if (mods.includes("Alt") && k === "tab") return "app-switcher";
   if (mods.includes("Ctrl")) {
+    /* Ctrl+N y Ctrl+Shift+N abren una VENTANA, no una pestaña: van al
+       simulador de ventanas para que se vea la diferencia. */
+    if (k === "n") return "app-switcher";
     if (k === "t" || k === "w" || k === "tab") return "browser-tabs";
     if (k === "f") return "find-box";
     if (k === "s" || k === "y") return "doc-editor";
@@ -90,6 +102,92 @@ function esReservado(combo: Combo): boolean {
     if (k === "t" || k === "w" || k === "n" || k === "tab") return true;
   }
   return false;
+}
+
+/** El `code` de KeyboardEvent que hay que pedirle a Keyboard Lock para cada
+ *  atajo reservado. La API bloquea TECLAS, no combinaciones: pidiendo "KeyW"
+ *  el navegador deja de quedarse con Ctrl+W y el evento llega a la página. */
+function codigoParaBloquear(combo: Combo): string | null {
+  const k = combo.key.toLowerCase();
+  if (k === "tab") return "Tab";
+  if (k.length === 1 && k >= "a" && k <= "z") return `Key${k.toUpperCase()}`;
+  return null;
+}
+
+type EstadoBloqueo = "no-hace-falta" | "sin-soporte" | "pendiente" | "activo";
+
+/** Pantalla completa + Keyboard Lock, que es lo único que hace que los
+ *  atajos del navegador lleguen a la página.
+ *
+ *  Pide un gesto del alumno (un botón), porque pantalla completa no se puede
+ *  pedir sola. Si el navegador no tiene la API, o si el alumno se sale de
+ *  pantalla completa, vuelve a "pendiente" y el nivel sigue jugable con el
+ *  teclado de la pantalla — nunca queda trabado. */
+function useBloqueoDeTeclado(combos: Combo[], activo: boolean) {
+  const reservados = combos.filter(esReservado);
+  const hacenFalta = reservados.length > 0;
+  const soporta =
+    typeof navigator !== "undefined" &&
+    !!(navigator as Navigator & { keyboard?: { lock?: unknown } }).keyboard?.lock &&
+    !!document.documentElement.requestFullscreen;
+
+  const [enMarcha, setEnMarcha] = useState(false);
+  /* Si pantalla completa o el bloqueo fallan, o si el alumno prefiere no
+     usarlos, el nivel NO puede quedar trabado detrás del cartel: se juega
+     con el teclado de la pantalla, que siempre funciona. */
+  const [seJuegaSinBloqueo, setSeJuegaSinBloqueo] = useState(false);
+
+  const soltar = useCallback(() => {
+    const teclado = (navigator as Navigator & { keyboard?: { unlock?: () => void } }).keyboard;
+    try { teclado?.unlock?.(); } catch { /* al navegador no le importa */ }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    setEnMarcha(false);
+  }, []);
+
+  const tomar = useCallback(async () => {
+    if (!soporta) return;
+    const codigos = [...new Set(reservados.map(codigoParaBloquear).filter((c): c is string => !!c))];
+    try {
+      await document.documentElement.requestFullscreen();
+      const teclado = (navigator as Navigator & {
+        keyboard?: { lock?: (k: string[]) => Promise<void> };
+      }).keyboard;
+      await teclado?.lock?.(codigos);
+      setEnMarcha(true);
+    } catch {
+      /* Falla, por ejemplo, si el navegador no considera el clic un gesto
+         válido, o si una política de la escuela bloquea pantalla completa.
+         En ese caso se sigue con el teclado de la pantalla en vez de dejar
+         al alumno mirando un cartel que no avanza. */
+      setEnMarcha(false);
+      setSeJuegaSinBloqueo(true);
+    }
+    // reservados se recalcula por render; las teclas del nivel no cambian.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soporta]);
+
+  /* Salirse de pantalla completa suelta el bloqueo del lado del navegador,
+     así que hay que enterarse para volver a ofrecer el botón. */
+  useEffect(() => {
+    if (!hacenFalta) return;
+    const alCambiar = () => { if (!document.fullscreenElement) setEnMarcha(false); };
+    document.addEventListener("fullscreenchange", alCambiar);
+    return () => document.removeEventListener("fullscreenchange", alCambiar);
+  }, [hacenFalta]);
+
+  /* Al terminar el nivel o al irse, devolver el teclado y salir de pantalla
+     completa: que el juego no se quede con el navegador tomado. */
+  useEffect(() => {
+    if (!activo && enMarcha) soltar();
+  }, [activo, enMarcha, soltar]);
+  useEffect(() => () => { soltar(); }, [soltar]);
+
+  const estado: EstadoBloqueo =
+    !hacenFalta ? "no-hace-falta"
+    : !soporta || seJuegaSinBloqueo ? "sin-soporte"
+    : enMarcha ? "activo"
+    : "pendiente";
+  return { estado, tomar, seguirSinBloqueo: () => setSeJuegaSinBloqueo(true) };
 }
 
 /* Clear, simulator-safe copy per combo (§6) — never just "hacé el atajo". */
@@ -371,8 +469,10 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
   const currentStep = steps?.[currentIdx];
   /* El escenario sale del atajo salvo que el guion diga otra cosa. */
   const currentEnv = (currentStep?.env as VirtualEnvKind | undefined) ?? current?.env;
-  /* ¿Este atajo se lo queda el navegador? Cambia cómo se pide hacerlo. */
-  const reservado = current ? esReservado(current) : false;
+  /* ¿Este atajo se lo queda el navegador? Con el bloqueo activo ya no, y se
+     pide con el teclado real como cualquier otro. */
+  const bloqueo = useBloqueoDeTeclado(combos, !prog.completed);
+  const reservado = (current ? esReservado(current) : false) && bloqueo.estado !== "activo";
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden font-body text-text animate-page-fade">
@@ -523,6 +623,10 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
                 <span aria-hidden="true">👇</span>
                 Este atajo lo maneja el navegador: tocá las teclas de acá abajo.
               </span>
+            ) : bloqueo.estado === "activo" ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-mint/25 px-3 py-1 text-[11px] sm:text-xs font-bold text-accent-teal shadow-sm">
+                🔒 Teclado capturado: apretá el atajo de verdad, no le pasa nada al navegador.
+              </span>
             ) : (
               <span className="text-[11px] text-muted">Usá las teclas del juego o el teclado.</span>
             )}
@@ -554,6 +658,43 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
           </div>
         </div>
       </section>
+
+      {/* Puerta de pantalla completa. Sólo aparece en los niveles con atajos
+          del navegador y sólo donde la API existe. Hace falta un clic porque
+          pantalla completa no se puede pedir sin un gesto del alumno. */}
+      {bloqueo.estado === "pendiente" && !prog.completed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-text/45 backdrop-blur-sm" />
+          <div className="glass-card-smooth relative w-full max-w-md rounded-3xl p-7 text-center shadow-card animate-modal-in">
+            <div className="text-5xl" aria-hidden="true">🔒</div>
+            <h3 className="mt-3 font-display text-2xl text-text">Modo pantalla completa</h3>
+            <p className="mt-2 text-sm text-muted">
+              Este nivel usa atajos que normalmente maneja el navegador, como abrir y
+              cerrar pestañas. En pantalla completa el juego se queda con esas teclas,
+              así podés apretarlas de verdad sin que se te abra ni se te cierre nada.
+            </p>
+            <button
+              type="button"
+              className="mt-5 rounded-full bg-gradient-to-br from-accent to-accent-strong px-6 py-3 text-sm font-bold text-white shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0"
+              onClick={bloqueo.tomar}
+            >
+              Empezar el nivel
+            </button>
+            <p className="mt-3 text-[11px] text-muted">
+              Para salir, apretá Escape sin soltar o usá el botón «Salir».
+            </p>
+            {/* Salida siempre disponible: si la escuela bloquea pantalla
+                completa, el nivel igual se juega con el teclado de abajo. */}
+            <button
+              type="button"
+              className="mt-2 text-[11px] font-semibold text-accent-strong underline underline-offset-2 transition hover:text-accent"
+              onClick={bloqueo.seguirSinBloqueo}
+            >
+              Seguir sin pantalla completa
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Metrics bar */}
       <div className="mx-4 mt-4 mb-2 sm:mx-8 flex items-center justify-center gap-3 rounded-2xl bg-white/60 px-4 py-2 text-sm font-semibold text-text shadow-card backdrop-blur-md">
@@ -914,35 +1055,50 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction, scene }: En
 /* ------------------------------------------------------------------ */
 const VIRT_APPS = ["TYPELY", "Música", "Notas", "Dibujo"];
 
-function VirtualAppSwitcher({ completed, triggerSignal, onAction }: EnvProps) {
+function VirtualAppSwitcher({ combo, completed, triggerSignal, onAction }: EnvProps) {
+  const [ventanas, setVentanas] = useState(VIRT_APPS);
   const [focused, setFocused] = useState(0);
   const [switching, setSwitching] = useState(false);
   useKeyboardTrigger(triggerSignal, () => act());
 
+  const esNueva = combo.key.toLowerCase() === "n";
+  const incognito = esNueva && combo.mods.includes("Shift");
+
   function act() {
     if (completed) return;
     setSwitching(true);
-    const next = (focused + 1) % VIRT_APPS.length;
-    setFocused(next);
+    if (esNueva) {
+      /* Ctrl+N abre una ventana NUEVA y el foco se va a ella: eso es lo que
+         hay que ver, que aparece una ventana más y no una pestaña. */
+      setVentanas((prev) => {
+        const nombre = incognito ? "Ventana privada" : `Ventana ${prev.length + 1}`;
+        setFocused(prev.length);
+        return [...prev, nombre];
+      });
+    } else {
+      setFocused((f) => (f + 1) % ventanas.length);
+    }
     window.setTimeout(() => setSwitching(false), 400);
     onAction();
   }
+
+  const iconos = ["🎮", "🎵", "📝", "🎨"];
 
   return (
     <div className="glass-surface flex flex-col items-center gap-3 p-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted">Ventanas abiertas:</p>
       <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-        {VIRT_APPS.map((app, i) => (
+        {ventanas.map((app, i) => (
           <div
-            key={app}
+            key={`${app}-${i}`}
             className={[
               "flex flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/60 p-3 text-xs font-semibold text-text shadow-sm transition",
               i === focused ? "ring-2 ring-accent bg-gradient-to-b from-accent-sky/25 to-accent/15 scale-105" : "",
               switching && i === focused ? "animate-reward-pop" : "",
             ].join(" ")}
           >
-            <span className="text-2xl">{["🎮","🎵","📝","🎨"][i]}</span>
-            <span>{app}</span>
+            <span className="text-2xl">{iconos[i] ?? (incognito && i === ventanas.length - 1 ? "🕶️" : "🪟")}</span>
+            <span className="truncate max-w-full">{app}</span>
           </div>
         ))}
       </div>
@@ -956,11 +1112,8 @@ function VirtualAppSwitcher({ completed, triggerSignal, onAction }: EnvProps) {
         ].join(" ")}
         onClick={act}
       >
-        Cambiar ventana (Alt + Tab)
+        {esNueva ? (incognito ? "Abrir ventana privada" : "Abrir ventana nueva") : "Cambiar de ventana"}
       </button>
-      <p className="text-center text-[11px] text-muted">
-        Si Alt+Tab salió de la página, usá el botón de arriba.
-      </p>
     </div>
   );
 }
