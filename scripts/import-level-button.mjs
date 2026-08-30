@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { colorDeFondo, keyBackground } from "./key-background.mjs";
+import { colorDeFondo, keyBackground, alphaConBordeSuave } from "./key-background.mjs";
 
 /* =====================================================================
    Importa una lámina de botón de nivel (los dos estados lado a lado sobre
@@ -38,11 +38,15 @@ const SHEETS = {
   island2:  { file: "btn-island2.jpg",  crop: [56, 139, 717, 387], gap: 810, base: { cx: 365, cy: 194, w: 549 } },
   /* La 3 trae un libro apoyado a la derecha que se sale de la huella: no
      cuenta como base, pero sí obliga a dejarle lugar en el lienzo. */
-  island3:  { file: "btn-island3.png",  crop: [54,  87, 750, 479], gap: 811, base: { cx: 367, cy: 225, w: 570 } },
+  island3:  { file: "btn-island3.png",  crop: [54,  87, 750, 479], gap: 811, base: { cx: 367, cy: 225, w: 570 }, halo: { entrada: 85, umbral: 150 } },
   /* huecos: las raicillas que cuelgan del musgo cierran lazos chicos contra
      la base y dejaban el fondo adentro. */
   island4:  { file: "btn-island4.png",  crop: [63, 140, 706, 456], gap: 800, base: { cx: 353, cy: 219, w: 530 }, huecos: 40 },
-  island5:  { file: "btn-island5.png",  crop: [57, 115, 735, 439], gap: 807, base: { cx: 371, cy: 198, w: 522 } },
+  /* halo: la neblina de suelo abajo del pasto es un degradé pintado que
+     llega hasta el blanco; con alfa binario quedaba una franja crema opaca
+     de borde duro alrededor de todo el botón. La entrada baja deja afuera
+     la piedra del canto, que contra el fondo ya arranca en 170. */
+  island5:  { file: "btn-island5.png",  crop: [57, 115, 735, 439], gap: 807, base: { cx: 371, cy: 198, w: 522 }, halo: { entrada: 85, umbral: 150 } },
   island6:  { file: "btn-island6.png",  crop: [96,  84, 642, 443], gap: 808, base: { cx: 321, cy: 257, w: 514 } },
   /* huecos: las ramas de cerezo dan la vuelta al canto y cierran doce lazos
      contra la piedra; adentro quedaba el fondo opaco, que es el bug que se
@@ -56,7 +60,7 @@ const SHEETS = {
      lámina es el manto de nieve y los ventisqueros del engranaje — es el
      caso que documenta por qué esto no se puede prender para todas. */
   island8:  { file: "btn-island8.png",  crop: [26,  80, 766, 555], gap: 794, base: { cx: 383, cy: 278, w: 560 } },
-  island9:  { file: "btn-island9.png",  crop: [25, 130, 780, 476], gap: 816, base: { cx: 398, cy: 262, w: 452 } },
+  island9:  { file: "btn-island9.png",  crop: [25, 130, 780, 476], gap: 816, base: { cx: 398, cy: 262, w: 452 }, halo: { entrada: 85, umbral: 150 } },
   /* huecos: las lianas cuelgan cerrando varios lazos, y el fondo que queda
      atrapado adentro hay que rellenarlo aparte. Con el umbral viejo de 900
      se rellenaban los dos lazos grandes y quedaban sin tocar cinco chicos
@@ -64,12 +68,16 @@ const SHEETS = {
   island10: { file: "btn-island10.png", crop: [37,  77, 750, 537], gap: 801, base: { cx: 384, cy: 279, w: 480 }, huecos: 40 },
   /* La 12 es la más asimétrica: la roca está corrida a la izquierda y la arena
      se derrama a la derecha. El centro sale del disco, no de la silueta. */
+  /* SIN halo a propósito: acá el crema pálido de alrededor no es neblina
+     sino la arena, que es dibujo y arranca pegada al color del fondo. Con
+     el desvanecido prendido la arena se volvía translúcida — el mismo caso
+     que la nieve de la 8. */
   island12: { file: "btn-island12.png", crop: [85, 137, 750, 400], gap: 801, base: { cx: 338, cy: 220, w: 522 } },
   island13: { file: "btn-island13.png", crop: [59,  96, 728, 462], gap: 807, base: { cx: 364, cy: 240, w: 553 } },
   /* huecos: las argollas de cobre y el resorte del costado son lazos cerrados
      de metal, y el fondo les quedaba adentro. */
   island14: { file: "btn-island14.png", crop: [69, 102, 706, 460], gap: 801, base: { cx: 350, cy: 253, w: 558 }, huecos: 40 },
-  island15: { file: "btn-island15.png", crop: [105, 79, 639, 479], gap: 814, base: { cx: 316, cy: 240, w: 601 } },
+  island15: { file: "btn-island15.png", crop: [105, 79, 639, 479], gap: 814, base: { cx: 316, cy: 240, w: 601 }, halo: { entrada: 85, umbral: 150 } },
   island11: { file: "btn-island11.png", crop: [41, 231, 462, 336], gap: 492, base: { cx: 232, cy: 190, w: 433 } },
 };
 
@@ -127,13 +135,16 @@ async function importOne(id) {
       .raw().toBuffer({ resolveWithObject: true });
     const { width: W, height: H, channels: C } = info;
     const bg = keyBackground(data, W, H, C, fondo, s.huecos ?? false);
+    /* `halo` ablanda el borde donde el dibujo se desvanece contra el fondo;
+       sin él, el alfa es binario y ese degradé queda cortado en seco. */
+    const alpha = s.halo ? alphaConBordeSuave(data, W, H, C, fondo, bg, s.halo) : null;
 
     const rgba = Buffer.alloc(W * H * 4);
     for (let i = 0; i < W * H; i++) {
       rgba[i * 4] = data[i * C];
       rgba[i * 4 + 1] = data[i * C + 1];
       rgba[i * 4 + 2] = data[i * C + 2];
-      rgba[i * 4 + 3] = bg[i] ? 0 : 255;
+      rgba[i * 4 + 3] = alpha ? alpha[i] : bg[i] ? 0 : 255;
     }
 
     await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
