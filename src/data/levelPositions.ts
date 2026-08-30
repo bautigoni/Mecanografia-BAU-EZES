@@ -143,15 +143,20 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
 
   island3: [
     /* island3.webp: ONE big central painted chain (the cluster in the
-       heatmap at x 20-70, y 30-95). All 7 levels ride the chain in a
-       logical path; no separate top/right platforms exist in the art. */
+       heatmap at x 20-70, y 30-95). Los 6 niveles recorren la cadena en un
+       camino lógico; no hay plataformas sueltas arriba ni a la derecha.
+
+       Eran 7. El que estaba en (53, 90) se sacó junto con su nivel: a esa
+       altura el nodo caía detrás del panel de "Próximo personaje", que es
+       fijo abajo de la pantalla, así que el 4 no se veía ni se podía tocar
+       y la isla se leía como 1-2-3-5-6-7. Cuidado al bajar un nodo de ~85
+       en esta pantalla, por eso mismo. */
     { x: 53, y: 48 },   // N1 — upper-centre of the main chain
     { x: 57, y: 60 },   // N2 — slightly down-right
     { x: 67, y: 66 },   // N3 — bottom-right of the main chain
-    { x: 53, y: 90 },   // N4 — bottom-centre
-    { x: 30, y: 69 },   // N5 — bottom-left
-    { x: 27, y: 59 },   // N6 — mid-left
-    { x: 35, y: 42 },   // N7 — upper-left
+    { x: 30, y: 69 },   // N4 — bottom-left
+    { x: 27, y: 59 },   // N5 — mid-left
+    { x: 35, y: 42 },   // N6 — upper-left (desafío final)
   ],
 
   island4: [
