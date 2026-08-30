@@ -28,6 +28,69 @@ export type WorldId =
   | "island14"
   | "island15";
 
+/* ── Guion de un nivel de atajos ────────────────────────────────────────
+   Un nivel de atajos servía una lista de combos sueltos: "Ctrl+C" tres
+   veces seguidas. Se apretaba la tecla correcta sin que pasara nada que se
+   entendiera, y copiar nunca terminaba en pegar.
+
+   Con `steps` el nivel pasa a ser UNA tarea contada paso a paso: cada paso
+   dice qué hay que hacer y por qué, y el simulador conserva su estado entre
+   pasos, así lo que seleccionás sigue pintado cuando copiás y lo que
+   copiaste aparece cuando pegás.
+
+   Es opcional: un nivel sin `steps` se sigue jugando como antes, que es lo
+   que hacen las islas 12 y 14. */
+
+/** El cartel concreto que se muestra en un paso de Enter/Escape. Sin esto
+ *  todos los diálogos decían lo mismo, y aceptar o cancelar daba igual: la
+ *  gracia es que Enter guarde algo que querés y Escape frene algo que no. */
+export type ShortcutDialog = {
+  /** Quién muestra el cartel: la app o la página. */
+  app: string;
+  /** Lo que pregunta el cartel. */
+  question: string;
+  /** Rótulo del botón que acepta. */
+  accept: string;
+  /** Rótulo del botón que cancela. */
+  cancel: string;
+  /** true cuando lo correcto es CANCELAR (descargas raras, premios falsos).
+   *  Pinta el cartel como alerta en vez de como confirmación amable. */
+  danger?: boolean;
+  /** Qué pasó, según lo que se haya elegido. */
+  resultAccept: string;
+  resultCancel: string;
+};
+
+/** Un paso de la tarea: un atajo, más la consigna de ese momento. */
+export type ShortcutStep = {
+  /** El atajo, mismo formato que `targets` ("Ctrl+C", "Enter"…). */
+  combo: string;
+  /** Qué hacer ahora, en una línea y con motivo. Se muestra grande. */
+  prompt: string;
+  /** Sólo para pasos de Enter/Escape. */
+  dialog?: ShortcutDialog;
+  /** Dónde transcurre el paso. Normalmente se deduce del atajo, pero el
+   *  atajo solo no siempre alcanza: Escape cierra un cartel o cierra el
+   *  buscador según la tarea, y sin esto un "cerrá el buscador" terminaba
+   *  mostrando un cartel de guardar que no venía a cuento. */
+  env?: "text-editor" | "find-box" | "dialog";
+};
+
+/** El contenido del simulador de un nivel, para que no sea siempre el mismo
+ *  texto de ejemplo sino algo que el chico reconozca. */
+export type ShortcutScene = {
+  /** Lo que hay en la caja de origen. */
+  source?: string;
+  /** Rótulo de la caja de origen ("Nota de la seño"). */
+  sourceLabel?: string;
+  /** Rótulo de la caja de destino ("Tu cuaderno"). */
+  targetLabel?: string;
+  /** El texto de la página en los pasos de Ctrl+F. */
+  page?: string;
+  /** Lo que se busca ahí; se resalta al abrir el buscador. */
+  find?: string;
+};
+
 export interface Activity {
   id: string;
   worldId: WorldId;
@@ -52,6 +115,12 @@ export interface Activity {
   initialTexts?: string[];
   /** Correction levels only: per-objective task hint, parallel to `targets`. */
   correctionHints?: string[];
+
+  /** Shortcut levels: la tarea contada paso a paso (ver ShortcutStep). Si
+   *  está, manda sobre `targets` y el simulador no se reinicia entre pasos. */
+  steps?: ShortcutStep[];
+  /** Shortcut levels: qué texto y qué rótulos muestra el simulador. */
+  scene?: ShortcutScene;
 }
 
 type ActivityDraft = Omit<Activity, "id" | "level" | "type" | "inputType" | "difficulty"> & {
@@ -1112,93 +1181,224 @@ const world11: Activity[] = [
   makeActivity({
     worldId: "island11",
     levelNumber: 1,
-    title: "Enter y Escape",
-    subtitle: "Teclas grandes",
-    instruction: "Apretá la tecla que aparece.",
-    listenText: "Apretá la tecla que aparece en pantalla.",
+    title: "Aceptar o cancelar",
+    subtitle: "Enter dice que sí, Escape dice que no",
+    instruction: "Leé cada cartel y decidí: ¿lo aceptás o lo cancelás?",
+    listenText: "Leé el cartel. Si es algo que querés, aceptá con Enter. Si es algo raro, cancelá con Escape.",
     targets: ["Enter", "Escape", "Enter", "Escape"],
+    /* Cuatro carteles distintos, dos para aceptar y dos para cancelar. La
+       tecla sola no enseña nada: lo que se practica acá es mirar QUÉ pide el
+       cartel antes de contestar. */
+    steps: [
+      {
+        combo: "Enter",
+        prompt: "Terminaste tu dibujo y te pregunta si lo guardás. Aceptá con Enter.",
+        dialog: {
+          app: "Dibujo mágico",
+          question: "¿Guardar los cambios de tu dibujo?",
+          accept: "Guardar",
+          cancel: "No guardar",
+          resultAccept: "Tu dibujo quedó guardado.",
+          resultCancel: "Se perdieron los cambios del dibujo.",
+        },
+      },
+      {
+        combo: "Escape",
+        prompt: "¡Ojo! Vos no pediste esa descarga. Cancelala con Escape.",
+        dialog: {
+          app: "juegos-gratis-ya.com",
+          question: "Esta página quiere descargar «super-juego.exe». Vos no lo pediste.",
+          accept: "Descargar",
+          cancel: "Cancelar",
+          danger: true,
+          resultAccept: "Se descargó un archivo que no pediste. Mejor cancelarlo.",
+          resultCancel: "Frenaste la descarga. ¡Bien ahí!",
+        },
+      },
+      {
+        combo: "Enter",
+        prompt: "La tarea está lista para enviar. Aceptá con Enter.",
+        dialog: {
+          app: "Aula virtual",
+          question: "¿Enviar tu tarea a la maestra?",
+          accept: "Enviar",
+          cancel: "Todavía no",
+          resultAccept: "Tu tarea llegó a la maestra.",
+          resultCancel: "La tarea quedó sin enviar.",
+        },
+      },
+      {
+        combo: "Escape",
+        prompt: "Nadie regala premios por sorpresa. Cerrá el cartel con Escape.",
+        dialog: {
+          app: "premio-sorpresa.net",
+          question: "«¡Ganaste un celular! Escribí tu dirección para recibirlo.»",
+          accept: "Escribir mi dirección",
+          cancel: "Cerrar",
+          danger: true,
+          resultAccept: "Le diste tus datos a una página desconocida.",
+          resultCancel: "Cerraste la trampa sin dar ningún dato.",
+        },
+      },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 1,
-    description: "Conocé Enter para aceptar y Escape para cancelar.",
+    description: "Enter acepta lo que querés; Escape frena lo que no pediste.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 2,
-    title: "Seleccionar todo",
-    subtitle: "Ctrl + A",
-    instruction: "Hacé el atajo que aparece.",
-    listenText: "Mantené Control y apretá la letra que aparece.",
-    targets: ["Ctrl+A", "Ctrl+A", "Ctrl+A"],
+    title: "Seleccionar y copiar",
+    subtitle: "Ctrl + A y después Ctrl + C",
+    instruction: "Copiá la nota de la maestra para no perderla.",
+    listenText: "Primero seleccioná toda la nota con Control y A. Después copiala con Control y C.",
+    targets: ["Ctrl+A", "Ctrl+C"],
+    scene: {
+      sourceLabel: "Nota de la maestra",
+      source: "Mañana traer el cuaderno rojo y una regla.",
+      targetLabel: "Tu cuaderno digital",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná toda la nota con Ctrl + A. Vas a ver cómo se pinta." },
+      { combo: "Ctrl+C", prompt: "Ahora copiala con Ctrl + C. Se guarda en el portapapeles, mirá abajo." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 2,
-    description: "Aprendé a seleccionar todo con Ctrl + A.",
+    description: "Para copiar algo, primero hay que seleccionarlo.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 3,
-    title: "Copiar",
-    subtitle: "Ctrl + C",
-    instruction: "Hacé el atajo para copiar.",
-    listenText: "Mantené Control y apretá C para copiar.",
-    targets: ["Ctrl+C", "Ctrl+C", "Ctrl+C"],
+    title: "Copiar y pegar",
+    subtitle: "Ctrl + A, Ctrl + C y Ctrl + V",
+    instruction: "Pasá la lista de útiles a tu cuaderno, sin escribirla de nuevo.",
+    listenText: "Seleccioná la lista, copiala y después pegala en tu cuaderno.",
+    targets: ["Ctrl+A", "Ctrl+C", "Ctrl+V"],
+    scene: {
+      sourceLabel: "Lista de útiles",
+      source: "Cartuchera, tijera, plasticola y hojas de colores.",
+      targetLabel: "Tu cuaderno digital",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná toda la lista con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copiala con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegala en tu cuaderno con Ctrl + V. Ahí vas a ver aparecer la lista." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
-    difficulty: 2,
-    description: "Copiá con Ctrl + C.",
+    difficulty: 3,
+    description: "Copiar sin pegar no sirve de nada: el par completo es Ctrl + C y Ctrl + V.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 4,
-    title: "Pegar",
-    subtitle: "Ctrl + V",
-    instruction: "Hacé el atajo para pegar.",
-    listenText: "Mantené Control y apretá V para pegar.",
-    targets: ["Ctrl+V", "Ctrl+V", "Ctrl+V"],
+    title: "Deshacer un error",
+    subtitle: "Ctrl + Z borra lo último",
+    instruction: "Pegaste el chiste en la tarea. Sacalo antes de que lo vea la maestra.",
+    listenText: "Copiá el texto, pegalo y después deshacé el cambio con Control y Z.",
+    targets: ["Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+Z"],
+    scene: {
+      sourceLabel: "Chiste del recreo",
+      source: "¿Qué le dice un cero a un ocho? ¡Lindo cinturón!",
+      targetLabel: "Tu tarea de matemática",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná el chiste con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copialo con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegalo en la tarea con Ctrl + V… ¡ups!, ahí no iba." },
+      { combo: "Ctrl+Z", prompt: "Sacalo con Ctrl + Z. Deshacer borra lo último que hiciste." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 3,
-    description: "Pegá con Ctrl + V.",
+    description: "Ctrl + Z te salva cuando pegás algo donde no iba.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 5,
-    title: "Deshacer",
-    subtitle: "Ctrl + Z",
-    instruction: "Hacé el atajo para deshacer.",
-    listenText: "Mantené Control y apretá Z para deshacer.",
-    targets: ["Ctrl+Z", "Ctrl+Z", "Ctrl+Z"],
+    title: "Buscar en la página",
+    subtitle: "Ctrl + F encuentra, Escape cierra",
+    instruction: "La página es larga. Encontrá el día del acto sin leerla toda.",
+    listenText: "Abrí el buscador con Control y F. Después cerralo con Escape.",
+    targets: ["Ctrl+F", "Escape"],
+    scene: {
+      page: "Bienvenidos a la escuela. Las clases empiezan a las 8. El acto es el viernes 12. La biblioteca abre los martes. El comedor cierra a las 14.",
+      find: "viernes 12",
+    },
+    steps: [
+      { combo: "Ctrl+F", prompt: "Abrí el buscador con Ctrl + F para encontrar «viernes 12»." },
+      { combo: "Escape", prompt: "Ya lo encontraste. Cerrá el buscador con Escape.", env: "find-box" },
+    ],
     mode: "independent",
     inputType: "shortcut",
-    difficulty: 3,
-    description: "Deshacé un error con Ctrl + Z.",
+    difficulty: 4,
+    description: "Ctrl + F busca una palabra en toda la página, sin leerla entera.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 6,
-    title: "Buscar en la página",
-    subtitle: "Ctrl + F",
-    instruction: "Hacé el atajo para buscar.",
-    listenText: "Mantené Control y apretá F para buscar.",
-    targets: ["Ctrl+F", "Ctrl+F", "Ctrl+F"],
+    title: "Copiar el correo",
+    subtitle: "Buscar, copiar y pegar",
+    instruction: "Encontrá el correo de la escuela y copialo en el formulario.",
+    listenText: "Buscá el correo con Control y F, cerrá el buscador, y después copialo y pegalo.",
+    targets: ["Ctrl+F", "Escape", "Ctrl+A", "Ctrl+C", "Ctrl+V"],
+    scene: {
+      page: "Contacto: la secretaría atiende de 8 a 12. Escribinos a hola@escuela.edu.ar y te respondemos.",
+      find: "hola@escuela.edu.ar",
+      sourceLabel: "Correo que encontraste",
+      source: "hola@escuela.edu.ar",
+      targetLabel: "Formulario de contacto",
+    },
+    steps: [
+      { combo: "Ctrl+F", prompt: "Abrí el buscador con Ctrl + F y buscá el correo." },
+      { combo: "Escape", prompt: "Ya está a la vista. Cerrá el buscador con Escape.", env: "find-box" },
+      { combo: "Ctrl+A", prompt: "Seleccioná el correo con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copialo con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegalo en el formulario con Ctrl + V. Copiar evita equivocarse una letra." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Encontrá texto con Ctrl + F.",
+    description: "Copiar un correo evita el error de escribirlo mal.",
   }),
   makeActivity({
     worldId: "island11",
     levelNumber: 7,
     title: "Reto de comandos",
-    subtitle: "Todos mezclados",
-    instruction: "Hacé cada atajo que aparece.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
-    targets: ["Ctrl+C", "Ctrl+V", "Ctrl+A", "Ctrl+Z", "Enter", "Escape"],
+    subtitle: "Toda la isla en una tarea",
+    instruction: "Mandale el mensaje a tu compañero: copialo, arreglá el error y enviá.",
+    listenText: "Seleccioná, copiá, pegá, deshacé el error, volvé a pegar y enviá con Enter.",
+    targets: ["Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+Z", "Ctrl+V", "Enter"],
+    scene: {
+      sourceLabel: "Mensaje para tu compañero",
+      source: "Te espero en la biblioteca a las 10.",
+      targetLabel: "Chat de la clase",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná el mensaje con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copialo con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegalo en el chat con Ctrl + V." },
+      { combo: "Ctrl+Z", prompt: "Te diste cuenta de que era el chat equivocado: deshacé con Ctrl + Z." },
+      { combo: "Ctrl+V", prompt: "Ya estás en el chat correcto. Pegalo de nuevo con Ctrl + V." },
+      {
+        combo: "Enter",
+        prompt: "Último paso: confirmá el envío con Enter.",
+        dialog: {
+          app: "Chat de la clase",
+          question: "¿Enviar el mensaje a tu compañero?",
+          accept: "Enviar",
+          cancel: "Todavía no",
+          resultAccept: "Mensaje enviado. ¡Terminaste la isla!",
+          resultCancel: "El mensaje quedó sin enviar.",
+        },
+      },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 5,
-    description: "Cerrá la isla combinando todos los comandos básicos.",
+    description: "Cerrá la isla usando todos los comandos en una sola tarea.",
   }),
 ];
 

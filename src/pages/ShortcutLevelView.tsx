@@ -22,7 +22,7 @@
 import { Monitor, RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Activity } from "../data/activities";
+import type { Activity, ShortcutDialog, ShortcutScene } from "../data/activities";
 import { assets } from "../utils/assets";
 import { getGameplayBackground } from "../data/worlds";
 import { StarCounter } from "../components/common/StarCounter";
@@ -204,7 +204,11 @@ function useLevelProgress(activity: Activity, total: number) {
 /* ------------------------------------------------------------------ */
 export function ShortcutLevelView({ activity }: { activity: Activity }) {
   const navigate = useNavigate();
-  const combos = activity.targets.map(parseCombo);
+  /* Un nivel con `steps` es UNA tarea contada paso a paso; sin ellos, la
+     lista suelta de siempre. Los combos salen del guion cuando existe. */
+  const steps = activity.steps;
+  const scene = activity.scene;
+  const combos = (steps ? steps.map((s) => s.combo) : activity.targets).map(parseCombo);
   const total = combos.length;
   const background = getGameplayBackground(activity.worldId);
   const prog = useLevelProgress(activity, total);
@@ -321,7 +325,11 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
     window.speechSynthesis.speak(utter);
   }
 
-  const current = combos[Math.min(prog.progress, total - 1)];
+  const currentIdx = Math.min(prog.progress, total - 1);
+  const current = combos[currentIdx];
+  const currentStep = steps?.[currentIdx];
+  /* El escenario sale del atajo salvo que el guion diga otra cosa. */
+  const currentEnv = (currentStep?.env as VirtualEnvKind | undefined) ?? current?.env;
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden font-body text-text animate-page-fade">
@@ -374,12 +382,41 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
         </div>
       </header>
 
-      {/* Goal strip */}
+      {/* Goal strip. Con guion manda la consigna DEL PASO: la del nivel sola
+          no alcanzaba para saber qué había que hacer en cada momento. */}
       <div className="mx-4 mt-4 sm:mx-8 glass-card-smooth rounded-2xl px-4 py-3 shadow-card">
-        <span className="inline-block rounded-full bg-accent/20 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-accent-strong">
-          Atajo {Math.min(prog.progress + (prog.completed ? 0 : 1), total)} / {total}
-        </span>
-        <h2 className="mt-1 font-display text-lg sm:text-xl text-text">{activity.instruction}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-block rounded-full bg-accent/20 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-accent-strong">
+            {steps ? "Paso" : "Atajo"} {Math.min(prog.progress + (prog.completed ? 0 : 1), total)} / {total}
+          </span>
+          {steps && (
+            <span className="text-xs font-semibold text-muted">{activity.instruction}</span>
+          )}
+        </div>
+        <h2 className="mt-1 font-display text-lg sm:text-2xl leading-snug text-text">
+          {currentStep?.prompt ?? activity.instruction}
+        </h2>
+        {steps && (
+          /* Los pasos ya hechos quedan a la vista: así se entiende que
+             seleccionar, copiar y pegar son partes de una misma tarea. */
+          <ol className="mt-2 flex flex-wrap gap-1.5" aria-label="Pasos de la tarea">
+            {steps.map((s, i) => (
+              <li
+                key={i}
+                className={[
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-bold transition",
+                  i < prog.progress
+                    ? "bg-mint/30 text-accent-teal"
+                    : i === prog.progress && !prog.completed
+                      ? "bg-accent/25 text-accent-strong ring-1 ring-accent/40"
+                      : "bg-white/50 text-muted",
+                ].join(" ")}
+              >
+                {i < prog.progress ? "✓ " : ""}{s.combo}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       {/* Stage: mascots + virtual environment */}
@@ -409,15 +446,26 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
         </span>
 
         <div className="relative z-10 w-full max-w-3xl glass-card p-4 sm:p-6 shadow-card flex flex-col gap-4">
-          {/* key={prog.progress} forces a fresh mount for each new combo so
-              virtual-env state (open tabs, dialog state, etc.) resets cleanly. */}
+          {/* Sin guion, un montaje nuevo por combo: cada atajo es su propio
+              ejercicio y conviene que el simulador arranque limpio.
+
+              CON guion NO se remonta mientras el escenario sea el mismo, y
+              ahí está la diferencia: si el simulador se reinicia entre pasos,
+              lo que seleccionaste deja de estar pintado cuando vas a copiar y
+              el portapapeles llega vacío al pegar, que era justamente lo que
+              hacía que copiar y pegar no se entendieran. Al cambiar de
+              escenario (del editor al cartel, por ejemplo) sí se remonta. */}
           <VirtualEnv
-            key={prog.progress}
+            key={steps ? `${currentEnv ?? "none"}` : prog.progress}
             combo={current}
             progress={prog.progress}
             completed={prog.completed}
             triggerSignal={kbTrigger}
             onVirtualAction={succeed}
+            scene={scene}
+            dialog={currentStep?.dialog}
+            stepIndex={currentIdx}
+            envOverride={currentEnv}
           />
 
           {/* Keycap display (always shown as the safe fallback) */}
@@ -563,14 +611,31 @@ interface VirtualEnvProps {
   completed: boolean;
   triggerSignal: number;
   onVirtualAction: () => void;
+  /** Contenido propio del nivel (island11); sin esto van los textos genéricos. */
+  scene?: ShortcutScene;
+  /** Cartel concreto del paso, para Enter/Escape. */
+  dialog?: ShortcutDialog;
+  /** Índice del paso: los escenarios que persisten lo usan para reiniciarse
+   *  cuando el paso cambia sin que cambie el escenario (dos carteles seguidos). */
+  stepIndex: number;
+  /** Escenario elegido por el guion, cuando el atajo solo no alcanza. */
+  envOverride?: VirtualEnvKind;
 }
 
-type EnvProps = { combo: Combo; completed: boolean; triggerSignal: number; onAction: () => void };
+type EnvProps = {
+  combo: Combo;
+  completed: boolean;
+  triggerSignal: number;
+  onAction: () => void;
+  scene?: ShortcutScene;
+  dialog?: ShortcutDialog;
+  stepIndex: number;
+};
 
-function VirtualEnv({ combo, completed, triggerSignal, onVirtualAction }: VirtualEnvProps) {
+function VirtualEnv({ combo, completed, triggerSignal, onVirtualAction, scene, dialog, stepIndex, envOverride }: VirtualEnvProps) {
   if (!combo) return null;
-  const props: EnvProps = { combo, completed, triggerSignal, onAction: onVirtualAction };
-  switch (combo.env) {
+  const props: EnvProps = { combo, completed, triggerSignal, onAction: onVirtualAction, scene, dialog, stepIndex };
+  switch (envOverride ?? combo.env) {
     case "browser-tabs":
       return <VirtualBrowser {...props} />;
     case "find-box":
@@ -699,10 +764,18 @@ function VirtualBrowser({ combo, completed, triggerSignal, onAction }: EnvProps)
 /* ------------------------------------------------------------------ */
 /* Virtual Find Box (Ctrl+F, Escape)                                   */
 /* ------------------------------------------------------------------ */
-function VirtualFindBox({ combo, completed, triggerSignal, onAction }: EnvProps) {
+function VirtualFindBox({ combo, completed, triggerSignal, onAction, scene }: EnvProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const SAMPLE = "El gato saltó sobre la mesa. El perro corrió por el jardín. El niño leyó un libro.";
+  const texto = scene?.page ?? SAMPLE;
+  const buscado = scene?.find;
+  /* Posición de la coincidencia, para poder partir el texto y pintarla. */
+  const corte = buscado ? texto.indexOf(buscado) : -1;
+  const resaltar = open && corte >= 0;
+
   useKeyboardTrigger(triggerSignal, () => act());
 
   function act() {
@@ -710,6 +783,10 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction }: EnvProps)
     const k = combo.key.toLowerCase();
     if (k === "f") {
       setOpen(true);
+      /* El buscador aparece YA con lo buscado escrito y resaltado en el
+         texto: si no, abrirlo no mostraba ningún resultado y no se entendía
+         para qué sirve Ctrl+F. */
+      if (buscado) setQuery(buscado);
       window.setTimeout(() => inputRef.current?.focus(), 50);
       onAction();
     } else if (k === "escape" && open) {
@@ -720,12 +797,22 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction }: EnvProps)
     }
   }
 
-  const SAMPLE = "El gato saltó sobre la mesa. El perro corrió por el jardín. El niño leyó un libro.";
-
   return (
     <div className="glass-surface flex flex-col gap-3 p-4">
       <div className="relative min-h-[8rem] rounded-xl bg-white/80 p-4 text-sm text-text shadow-inner">
-        <p>{SAMPLE}</p>
+        <p>
+          {resaltar ? (
+            <>
+              {texto.slice(0, corte)}
+              <mark className="rounded bg-amber-300/70 px-0.5 font-semibold text-text animate-reward-pop">
+                {buscado}
+              </mark>
+              {texto.slice(corte + (buscado?.length ?? 0))}
+            </>
+          ) : (
+            texto
+          )}
+        </p>
         {open && (
           <div className="absolute right-3 top-3 flex items-center gap-1 rounded-lg border border-white/80 bg-white/90 px-2 py-1 shadow-card animate-modal-in">
             <input
@@ -735,6 +822,11 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction }: EnvProps)
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            {resaltar && (
+              <span className="whitespace-nowrap rounded-full bg-mint/30 px-1.5 text-[10px] font-bold text-accent-teal">
+                1 de 1
+              </span>
+            )}
             <button
               type="button"
               className="flex h-5 w-5 items-center justify-center rounded-full text-sm text-muted transition hover:bg-rose/20 hover:text-rose"
@@ -870,9 +962,14 @@ function VirtualDocEditor({ combo, completed, triggerSignal, onAction }: EnvProp
 /* ------------------------------------------------------------------ */
 /* Virtual Dialog (Enter / Escape)                                     */
 /* ------------------------------------------------------------------ */
-function VirtualDialog({ combo, completed, triggerSignal, onAction }: EnvProps) {
+function VirtualDialog({ combo, completed, triggerSignal, onAction, dialog, stepIndex }: EnvProps) {
   const [state, setState] = useState<"idle" | "open" | "done">("open");
   useKeyboardTrigger(triggerSignal, () => act());
+
+  /* Con guion el escenario no se remonta entre pasos, así que dos carteles
+     seguidos compartirían el estado y el segundo ya aparecería contestado.
+     Al cambiar de paso el cartel vuelve a abrirse. */
+  useEffect(() => { setState("open"); }, [stepIndex]);
 
   function act() {
     if (completed || state === "done") return;
@@ -882,39 +979,67 @@ function VirtualDialog({ combo, completed, triggerSignal, onAction }: EnvProps) 
     else onAction();
   }
 
+  const peligro = dialog?.danger === true;
+
   return (
     <div className="glass-surface flex flex-col items-center gap-3 p-4">
       <div className="relative flex w-full min-h-[8rem] flex-col items-center justify-center rounded-xl bg-white/80 p-4 text-center text-sm text-text shadow-inner">
-        <p>Una app quiere guardar los cambios.</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+          {dialog?.app ?? "Una app"}
+        </p>
         {state === "open" && (
-          <div className="mt-3 w-full max-w-xs animate-modal-in rounded-2xl border border-white/80 bg-white/95 p-4 shadow-card">
-            <p className="text-sm font-semibold text-text">¿Guardar antes de salir?</p>
+          <div
+            className={[
+              "mt-3 w-full max-w-sm animate-modal-in rounded-2xl border p-4 shadow-card",
+              peligro
+                ? "border-rose/40 bg-rose/10 ring-2 ring-rose/30"
+                : "border-white/80 bg-white/95",
+            ].join(" ")}
+          >
+            {peligro && (
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose">
+                ⚠ Cuidado
+              </p>
+            )}
+            <p className="text-sm font-semibold text-text">
+              {dialog?.question ?? "¿Guardar antes de salir?"}
+            </p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
-                className="rounded-full bg-gradient-to-br from-accent to-accent-strong px-4 py-1.5 text-xs font-bold text-white shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0"
+                className={[
+                  "rounded-full px-4 py-1.5 text-xs font-bold shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0",
+                  peligro
+                    ? "border border-text/15 bg-white text-text"
+                    : "bg-gradient-to-br from-accent to-accent-strong text-white",
+                ].join(" ")}
                 onClick={() => { setState("done"); if (!completed) onAction(); }}
               >
-                Aceptar (Enter)
+                {dialog?.accept ?? "Aceptar"} (Enter)
               </button>
               <button
                 type="button"
-                className="rounded-full border border-text/15 bg-white px-4 py-1.5 text-xs font-bold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-btn active:translate-y-0"
+                className={[
+                  "rounded-full px-4 py-1.5 text-xs font-bold shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0",
+                  peligro
+                    ? "bg-gradient-to-br from-rose to-accent-pink text-white"
+                    : "border border-text/15 bg-white text-text",
+                ].join(" ")}
                 onClick={() => { setState("idle"); if (!completed) onAction(); }}
               >
-                Cancelar (Escape)
+                {dialog?.cancel ?? "Cancelar"} (Escape)
               </button>
             </div>
           </div>
         )}
         {state === "done" && (
           <p className="mt-2 rounded-full bg-mint/25 px-3 py-1 text-xs font-bold text-accent-teal animate-reward-pop">
-            ✓ ¡Aceptado!
+            ✓ {dialog?.resultAccept ?? "¡Aceptado!"}
           </p>
         )}
         {state === "idle" && (
           <p className="mt-2 rounded-full bg-rose/20 px-3 py-1 text-xs font-bold text-rose animate-reward-pop">
-            ✗ Cancelado.
+            ✗ {dialog?.resultCancel ?? "Cancelado."}
           </p>
         )}
       </div>
@@ -933,7 +1058,9 @@ function VirtualDialog({ combo, completed, triggerSignal, onAction }: EnvProps) 
         onClick={act}
         style={{ marginTop: state !== "open" ? "0.5rem" : undefined }}
       >
-        {combo.key.toLowerCase() === "enter" ? "Aceptar (Enter)" : "Cancelar (Escape)"}
+        {combo.key.toLowerCase() === "enter"
+          ? `${dialog?.accept ?? "Aceptar"} (Enter)`
+          : `${dialog?.cancel ?? "Cancelar"} (Escape)`}
       </button>
     </div>
   );
@@ -944,7 +1071,8 @@ function VirtualDialog({ combo, completed, triggerSignal, onAction }: EnvProps) 
 /* ------------------------------------------------------------------ */
 const SOURCE_TEXT = "¡Hola! Soy un texto para copiar.";
 
-function VirtualTextEditor({ combo, completed, triggerSignal, onAction }: EnvProps) {
+function VirtualTextEditor({ combo, completed, triggerSignal, onAction, scene }: EnvProps) {
+  const sourceText = scene?.source ?? SOURCE_TEXT;
   /* Selection is SIMULATED with internal state — we never touch the real DOM
      selection, so Ctrl+A can never select the whole page. The source starts
      UNSELECTED; only performing Ctrl+A (keyboard, keycaps or button) selects
@@ -964,10 +1092,10 @@ function VirtualTextEditor({ combo, completed, triggerSignal, onAction }: EnvPro
     } else if (k === "c") {
       // Copy the (simulated) selected text into internal game clipboard.
       setSelectedAll(true);
-      setClipboard(SOURCE_TEXT);
+      setClipboard(sourceText);
       onAction();
     } else if (k === "v") {
-      setPasted(clipboard || SOURCE_TEXT);
+      setPasted(clipboard || sourceText);
       onAction();
     } else if (k === "z") {
       setPasted("");
@@ -988,7 +1116,9 @@ function VirtualTextEditor({ combo, completed, triggerSignal, onAction }: EnvPro
   return (
     <div className="glass-surface grid gap-3 p-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Texto fuente</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+          {scene?.sourceLabel ?? "Texto fuente"}
+        </span>
         {/* user-select:none keeps the browser from ever selecting it;
             the simulated selection highlight appears via conditional classes. */}
         <p
@@ -999,11 +1129,18 @@ function VirtualTextEditor({ combo, completed, triggerSignal, onAction }: EnvPro
               : "text-text/80",
           ].join(" ")}
         >
-          {SOURCE_TEXT}
+          {sourceText}
         </p>
+        {selectedAll && (
+          <span className="self-start rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
+            ✓ seleccionado
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Área de trabajo</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+          {scene?.targetLabel ?? "Área de trabajo"}
+        </span>
         <div
           className="min-h-[4rem] rounded-lg border border-dashed border-white/80 bg-white/60 p-2 text-sm text-text"
           aria-label="Área de trabajo"
@@ -1016,6 +1153,20 @@ function VirtualTextEditor({ combo, completed, triggerSignal, onAction }: EnvPro
           <span className="self-start rounded-full bg-accent-sky/25 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
             ↩ deshecho
           </span>
+        )}
+      </div>
+
+      {/* El portapapeles, a la vista. Es lo único del copiar-y-pegar que en la
+          computadora de verdad es invisible, y por eso copiar parecía no hacer
+          nada: acá se ve que Ctrl+C lo llena y que Ctrl+V lo usa. */}
+      <div className="sm:col-span-2 flex flex-wrap items-center gap-2 rounded-xl bg-white/55 px-3 py-2 shadow-inner">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">📋 Portapapeles</span>
+        {clipboard ? (
+          <span className="rounded-lg bg-mint/25 px-2 py-1 text-xs font-semibold text-accent-teal animate-reward-pop">
+            «{clipboard}»
+          </span>
+        ) : (
+          <span className="text-xs italic text-muted/70">vacío — todavía no copiaste nada</span>
         )}
       </div>
       <button
