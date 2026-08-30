@@ -30,17 +30,25 @@
  * Enter, Escape) andan con el teclado real siempre, sin pantalla completa.
  *
  * Virtual environments available:
- *   "text-editor"   — Ctrl+C / Ctrl+V / Ctrl+A / Ctrl+Z / Enter / Escape
+ *   "text-editor"   — Ctrl+A/C/V/Z/Y/S  (un documento entero: seleccionar,
+ *                     copiar, pegar, deshacer, rehacer y guardar)
  *   "browser-tabs"  — Ctrl+T / Ctrl+W / Ctrl+Tab / Ctrl+N  (ventanas Y pestañas)
  *   "find-box"      — Ctrl+F / Escape
- *   "doc-editor"    — Ctrl+S / Ctrl+Y  (save / redo)
  *   "dialog"        — Enter / Escape
  *
- * El simulador de ventanas ("app-switcher") ya no existe: era una grilla de
- * apps aparte, así que Ctrl+N abría una "ventana" en una pantalla donde no
- * había ninguna pestaña y no se veía en qué se diferenciaba de Ctrl+T.
- * Ahora el navegador virtual tiene las dos cosas — ventanas, y pestañas
- * dentro de cada ventana — y esa diferencia queda a la vista.
+ * Quedaron cuatro porque había dos que partían en dos cosas que en la
+ * computadora de verdad son una sola:
+ *   - El simulador de ventanas ("app-switcher") era una grilla de apps
+ *     aparte, así que Ctrl+N abría una "ventana" en una pantalla donde no
+ *     había ninguna pestaña y no se veía en qué se diferenciaba de Ctrl+T.
+ *   - El editor de documentos ("doc-editor") se llevaba Ctrl+S y Ctrl+Y y
+ *     dejaba Ctrl+A/C/V/Z en el otro, así que guardar pasaba en una pantalla
+ *     donde no habías escrito nada y rehacer no podía devolver lo que
+ *     deshacía el simulador de al lado.
+ *
+ * OJO al escribir un nivel: el simulador se remonta cuando CAMBIA el
+ * escenario, así que un nivel puede ir del navegador al editor pero no
+ * puede volver — al volver, el escenario arranca de cero.
  */
 
 import { Monitor, RotateCcw, X } from "lucide-react";
@@ -59,7 +67,6 @@ type VirtualEnvKind =
   | "text-editor"
   | "browser-tabs"
   | "find-box"
-  | "doc-editor"
   | "dialog";
 
 type Combo = {
@@ -84,8 +91,10 @@ function comboEnv(mods: string[], key: string): VirtualEnvKind {
        a la fila de la ventana donde estás. */
     if (k === "t" || k === "w" || k === "tab" || k === "n") return "browser-tabs";
     if (k === "f") return "find-box";
-    if (k === "s" || k === "y") return "doc-editor";
-    if (k === "c" || k === "v" || k === "a" || k === "z") return "text-editor";
+    /* Guardar y rehacer van al MISMO editor que seleccionar, copiar, pegar y
+       deshacer: son cosas que se le hacen a un documento, y separadas no se
+       entendían — Ctrl+Y no podía devolver lo que había sacado Ctrl+Z. */
+    if (k === "c" || k === "v" || k === "a" || k === "z" || k === "y" || k === "s") return "text-editor";
   }
   if (k === "enter" || k === "escape") return "dialog";
   return "text-editor";
@@ -204,10 +213,10 @@ function comboActionHint(combo: Combo): string {
     if (k === "a") return "Seleccioná todo el texto del cuadro.";
     if (k === "c") return "Copiá el texto seleccionado.";
     if (k === "v") return "Pegá el texto en el área de trabajo.";
-    if (k === "z") return "Deshacé el último cambio.";
-    if (k === "y") return "Rehacé el cambio en el simulador.";
+    if (k === "z") return "Deshacé el último cambio del documento.";
+    if (k === "y") return "Volvé a traer lo que deshiciste.";
     if (k === "f") return "Abrí el buscador del simulador.";
-    if (k === "s") return "Guardá el documento del simulador.";
+    if (k === "s") return "Guardá el documento: mirá el cartel de arriba.";
     if (k === "n") return combo.mods.includes("Shift") ? "Abrí una ventana privada, aparte de las otras." : "Abrí otra ventana entera, con su propia fila de pestañas.";
   }
   if (k === "enter") return "Aceptá con Enter en el simulador.";
@@ -838,8 +847,6 @@ function VirtualEnv({ combo, completed, triggerSignal, onVirtualAction, scene, d
       return <VirtualBrowser {...props} />;
     case "find-box":
       return <VirtualFindBox {...props} />;
-    case "doc-editor":
-      return <VirtualDocEditor {...props} />;
     case "dialog":
       return <VirtualDialog {...props} />;
     default:
@@ -1374,54 +1381,6 @@ function VirtualFindBox({ combo, completed, triggerSignal, onAction, scene }: En
 }
 
 /* ------------------------------------------------------------------ */
-/* Virtual Document Editor (Ctrl+S save, Ctrl+Y redo)                 */
-/* ------------------------------------------------------------------ */
-function VirtualDocEditor({ combo, completed, triggerSignal, onAction }: EnvProps) {
-  const [saved, setSaved] = useState(false);
-  const [history] = useState(["Hola mundo", "Hola, ¡mundo!"]);
-  const [histIdx, setHistIdx] = useState(1);
-  useKeyboardTrigger(triggerSignal, () => act());
-
-  function act() {
-    if (completed) return;
-    const k = combo.key.toLowerCase();
-    if (k === "s") { setSaved(true); window.setTimeout(() => setSaved(false), 1200); onAction(); }
-    else if (k === "y") { setHistIdx((i) => Math.min(history.length - 1, i + 1)); onAction(); }
-    else onAction();
-  }
-
-  return (
-    <div className="glass-surface flex flex-col gap-3 p-4">
-      <div className="flex flex-col overflow-hidden rounded-xl bg-white/85 shadow-inner">
-        <div className="flex items-center gap-3 border-b border-white/60 bg-gradient-to-b from-white/90 to-bg-soft/60 px-3 py-1.5 text-xs font-semibold text-muted">
-          <span>Archivo</span>
-          <span>Editar</span>
-          <span>Vista</span>
-          {saved && (
-            <span className="ml-auto rounded-full bg-mint/25 px-2 py-0.5 text-[11px] font-bold text-accent-teal animate-reward-pop">
-              ✓ Guardado
-            </span>
-          )}
-        </div>
-        <div className="min-h-[6rem] p-4 text-sm text-text">{history[histIdx]}</div>
-      </div>
-      <button
-        type="button"
-        className={[
-          "self-center rounded-full px-4 py-2 text-sm font-bold shadow-btn transition",
-          saved
-            ? "bg-gradient-to-br from-mint to-accent-teal text-white"
-            : "bg-gradient-to-br from-accent to-accent-strong text-white hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0",
-        ].join(" ")}
-        onClick={act}
-      >
-        {combo.key.toLowerCase() === "s" ? "Guardar documento" : "Rehacer cambio"}
-      </button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Virtual Dialog (Enter / Escape)                                     */
 /* ------------------------------------------------------------------ */
 function VirtualDialog({ combo, completed, triggerSignal, onAction, dialog, stepIndex }: EnvProps) {
@@ -1528,104 +1487,174 @@ function VirtualDialog({ combo, completed, triggerSignal, onAction, dialog, step
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Virtual Text Editor (Ctrl+C/V/A/Z)                                  */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/* Editor virtual — UN DOCUMENTO (Ctrl+A/C/V/Z/Y/S)                   */
+/*                                                                     */
+/* Antes esto estaba partido en dos simuladores y ninguno cerraba la   */
+/* idea: acá vivían seleccionar, copiar, pegar y deshacer, y en otro   */
+/* lado, con su propio estado, guardar y rehacer. O sea que Ctrl+Y no  */
+/* podía devolver lo que había sacado Ctrl+Z — estaban en pantallas    */
+/* distintas — y Ctrl+S guardaba un documento en el que no habías      */
+/* escrito nada. Ahora es un solo documento, con historial de verdad y */
+/* con el cartel de "sin guardar", que es lo que le da sentido a       */
+/* apretar Ctrl+S.                                                     */
+/* ================================================================== */
 const SOURCE_TEXT = "¡Hola! Soy un texto para copiar.";
 
-function VirtualTextEditor({ combo, completed, triggerSignal, onAction, scene }: EnvProps) {
+function VirtualTextEditor({ combo, completed, triggerSignal, onAction, scene, stepIndex }: EnvProps) {
   const sourceText = scene?.source ?? SOURCE_TEXT;
-  /* Selection is SIMULATED with internal state — we never touch the real DOM
-     selection, so Ctrl+A can never select the whole page. The source starts
-     UNSELECTED; only performing Ctrl+A (keyboard, keycaps or button) selects
-     it inside the box. */
-  const [selectedAll, setSelectedAll] = useState(false);
-  const [clipboard, setClipboard] = useState("");
-  const [pasted, setPasted] = useState("");
-  const [undone, setUndone] = useState(false);
+  /* La selección es SIMULADA con estado interno — nunca se toca la selección
+     real del DOM, así que Ctrl+A no puede seleccionar la página entera. */
+  const [seleccionado, setSeleccionado] = useState(false);
+  const [portapapeles, setPortapapeles] = useState(scene?.clipboard ?? "");
+
+  /* Historial de verdad del documento: `pila[pos]` es lo que se ve, Ctrl+Z
+     retrocede y Ctrl+Y avanza. Con un simple "borrar lo pegado" no se podía
+     mostrar qué rehace Ctrl+Y, que es justo lo que cuesta entender. */
+  const [pila, setPila] = useState<string[]>([""]);
+  const [pos, setPos] = useState(0);
+  /* En qué punto del historial está lo que hay guardado en la compu. Si el
+     documento se mueve de ahí — pegando, deshaciendo o rehaciendo — queda
+     "sin guardar" solo, sin tener que acordarse de marcarlo en cada acción. */
+  const [guardadoEn, setGuardadoEn] = useState(0);
+  const [aviso, setAviso] = useState<"" | "deshecho" | "rehecho" | "guardado">("");
+  const avisoTimer = useRef<number | null>(null);
+  /* Freno anti-doble-clic: sin esto, dos clics rápidos en el botón pegan dos
+     veces y puntúan una sola, y el documento queda distinto de lo que dice
+     el paso. Se suelta al cambiar de paso para no comerse el intento
+     siguiente. */
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => { setOcupado(false); }, [stepIndex]);
+
+  useEffect(() => () => { if (avisoTimer.current) window.clearTimeout(avisoTimer.current); }, []);
+
+  function avisar(que: "deshecho" | "rehecho" | "guardado") {
+    if (avisoTimer.current) window.clearTimeout(avisoTimer.current);
+    setAviso(que);
+    avisoTimer.current = window.setTimeout(() => setAviso(""), 1600);
+  }
+
+  const texto = pila[pos];
+  const sinGuardar = pos !== guardadoEn;
+
   useKeyboardTrigger(triggerSignal, () => act());
 
   function act() {
-    if (completed) return;
+    if (completed || ocupado) return;
+    setOcupado(true);
+    window.setTimeout(() => setOcupado(false), 600);
+
     const k = combo.key.toLowerCase();
     if (k === "a") {
-      setSelectedAll(true);            // visual select inside the simulator only
-      onAction();
+      setSeleccionado(true);
     } else if (k === "c") {
-      // Copy the (simulated) selected text into internal game clipboard.
-      setSelectedAll(true);
-      setClipboard(sourceText);
-      onAction();
+      setSeleccionado(true);
+      setPortapapeles(sourceText);
     } else if (k === "v") {
-      setPasted(clipboard || sourceText);
-      onAction();
+      /* Un cambio nuevo borra lo que había para rehacer, igual que en
+         cualquier editor: si escribís después de deshacer, ya no se puede
+         volver adelante. */
+      const corte = pila.slice(0, pos + 1);
+      setPila([...corte, portapapeles || sourceText]);
+      setPos(corte.length);
     } else if (k === "z") {
-      setPasted("");
-      setUndone(true);
-      window.setTimeout(() => setUndone(false), 1200);
-      onAction();
-    } else {
-      onAction();
+      if (pos > 0) { setPos(pos - 1); avisar("deshecho"); }
+    } else if (k === "y") {
+      if (pos < pila.length - 1) { setPos(pos + 1); avisar("rehecho"); }
+    } else if (k === "s") {
+      setGuardadoEn(pos);
+      avisar("guardado");
     }
+    onAction();
   }
 
-  const label =
-    combo.key.toLowerCase() === "a" ? "Seleccionar todo" :
-    combo.key.toLowerCase() === "c" ? "Copiar" :
-    combo.key.toLowerCase() === "v" ? "Pegar" :
-    "Deshacer";
+  const k = combo.key.toLowerCase();
+  const etiquetaAccion =
+    k === "a" ? "Seleccionar todo" :
+    k === "c" ? "Copiar" :
+    k === "v" ? "Pegar" :
+    k === "z" ? "Deshacer" :
+    k === "y" ? "Rehacer" :
+    k === "s" ? "Guardar" :
+    "Hacer la acción";
 
   return (
-    <div className="glass-surface grid gap-3 p-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-          {scene?.sourceLabel ?? "Texto fuente"}
-        </span>
-        {/* user-select:none keeps the browser from ever selecting it;
-            the simulated selection highlight appears via conditional classes. */}
-        <p
+    <div className="glass-surface flex flex-col gap-3 p-4">
+      {/* Barra del documento. El cartel de la derecha es medio nivel entero:
+          sin él, guardar no se distingue de no guardar. */}
+      <div className="flex items-center gap-3 rounded-xl border border-white/70 bg-gradient-to-b from-white/90 to-bg-soft/70 px-3 py-1.5 text-[11px] font-semibold text-muted shadow-sm">
+        <span aria-hidden="true">📄</span>
+        <span className="truncate font-bold text-text">{scene?.docLabel ?? "documento.doc"}</span>
+        <span className="hidden sm:inline">Archivo</span>
+        <span className="hidden sm:inline">Editar</span>
+        <span className="hidden sm:inline">Ver</span>
+        <span
           className={[
-            "rounded-lg p-2 text-sm transition select-none",
-            selectedAll
-              ? "bg-accent/25 text-text ring-2 ring-accent/40"
-              : "text-text/80",
+            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
+            sinGuardar
+              ? "bg-amber-100 text-amber-900"
+              : "bg-mint/25 text-accent-teal",
+            aviso === "guardado" ? "animate-reward-pop" : "",
           ].join(" ")}
         >
-          {sourceText}
-        </p>
-        {selectedAll && (
-          <span className="self-start rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
-            ✓ seleccionado
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-          {scene?.targetLabel ?? "Área de trabajo"}
+          {sinGuardar ? "● Sin guardar" : "✓ Guardado"}
         </span>
-        <div
-          className="min-h-[4rem] rounded-lg border border-dashed border-white/80 bg-white/60 p-2 text-sm text-text"
-          aria-label="Área de trabajo"
-        >
-          {pasted ? pasted : (
-            <span className="text-muted/70 italic">Acá aparecerá lo que pegues…</span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+            {scene?.sourceLabel ?? "Texto fuente"}
+          </span>
+          {/* user-select:none evita que el navegador la seleccione de verdad;
+              el resaltado de la selección simulada va por clases. */}
+          <p
+            className={[
+              "select-none rounded-lg p-2 text-sm transition",
+              seleccionado ? "bg-accent/25 text-text ring-2 ring-accent/40" : "text-text/80",
+            ].join(" ")}
+          >
+            {sourceText}
+          </p>
+          {seleccionado && (
+            <span className="self-start rounded-full bg-accent/20 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
+              ✓ seleccionado
+            </span>
           )}
         </div>
-        {undone && (
-          <span className="self-start rounded-full bg-accent-sky/25 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
-            ↩ deshecho
+        <div className="flex flex-col gap-1.5 rounded-xl bg-white/70 p-3 shadow-inner">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+            {scene?.targetLabel ?? "Área de trabajo"}
           </span>
-        )}
+          <div
+            className="min-h-[4rem] rounded-lg border border-dashed border-white/80 bg-white/60 p-2 text-sm text-text"
+            aria-label="Área de trabajo"
+          >
+            {texto ? texto : (
+              <span className="italic text-muted/70">Acá aparecerá lo que pegues…</span>
+            )}
+          </div>
+          {aviso === "deshecho" && (
+            <span className="self-start rounded-full bg-accent-sky/25 px-2 py-0.5 text-[11px] font-bold text-accent-strong animate-reward-pop">
+              ↩ deshecho
+            </span>
+          )}
+          {aviso === "rehecho" && (
+            <span className="self-start rounded-full bg-mint/30 px-2 py-0.5 text-[11px] font-bold text-accent-teal animate-reward-pop">
+              ↪ rehecho — volvió sin escribirlo de nuevo
+            </span>
+          )}
+        </div>
       </div>
 
       {/* El portapapeles, a la vista. Es lo único del copiar-y-pegar que en la
           computadora de verdad es invisible, y por eso copiar parecía no hacer
           nada: acá se ve que Ctrl+C lo llena y que Ctrl+V lo usa. */}
-      <div className="sm:col-span-2 flex flex-wrap items-center gap-2 rounded-xl bg-white/55 px-3 py-2 shadow-inner">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white/55 px-3 py-2 shadow-inner">
         <span className="text-[11px] font-bold uppercase tracking-wider text-muted">📋 Portapapeles</span>
-        {clipboard ? (
-          <span className="rounded-lg bg-mint/25 px-2 py-1 text-xs font-semibold text-accent-teal animate-reward-pop">
-            «{clipboard}»
+        {portapapeles ? (
+          <span className="rounded-lg bg-mint/25 px-2 py-1 text-xs font-semibold text-accent-teal">
+            «{portapapeles}»
           </span>
         ) : (
           <span className="text-xs italic text-muted/70">vacío — todavía no copiaste nada</span>
@@ -1633,10 +1662,10 @@ function VirtualTextEditor({ combo, completed, triggerSignal, onAction, scene }:
       </div>
       <button
         type="button"
-        className="sm:col-span-2 self-center rounded-full bg-gradient-to-br from-accent to-accent-strong px-4 py-2 text-sm font-bold text-white shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0"
+        className="self-center rounded-full bg-gradient-to-br from-accent to-accent-strong px-4 py-2 text-sm font-bold text-white shadow-btn transition hover:-translate-y-0.5 hover:shadow-btn-hover active:translate-y-0"
         onClick={act}
       >
-        {label}
+        {etiquetaAccion}
       </button>
     </div>
   );

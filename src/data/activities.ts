@@ -125,6 +125,14 @@ export type ShortcutScene = {
   sourceLabel?: string;
   /** Rótulo de la caja de destino ("Tu cuaderno"). */
   targetLabel?: string;
+  /** Nombre del archivo que se ve en la barra del editor. Con esto el
+   *  simulador deja de ser "un editor" y pasa a ser EL informe que estás
+   *  haciendo, que es lo que le da sentido a guardarlo. */
+  docLabel?: string;
+  /** Lo que ya está en el portapapeles al empezar el nivel. Sirve para los
+   *  niveles que arrancan pegando: sin esto habría que copiar algo primero
+   *  aunque el nivel no sea sobre copiar. */
+  clipboard?: string;
   /** El texto de la página en los pasos de Ctrl+F. */
   page?: string;
   /** Lo que se busca ahí; se resalta al abrir el buscador. */
@@ -1788,105 +1796,241 @@ const world13: Activity[] = [
   }),
 ];
 
-/* World 14 — Isla de atajos avanzados (engine de atajos). */
+/* World 14 — Isla de atajos avanzados (engine de atajos).
+ *
+ * Misma corrección que la isla 12, por el mismo motivo: eran listas de un
+ * atajo repetido ("Ctrl+S" tres veces) sobre simuladores que se reiniciaban
+ * en cada intento, así que nada de lo que hacías quedaba hecho. Y encima
+ * había órdenes imposibles — el nivel 1 copiaba ANTES de seleccionar y el 2
+ * rehacía ANTES de deshacer, que es como pedir que devuelvas algo que
+ * todavía no sacaste.
+ *
+ * Los siete niveles son ahora una misma historia contada por partes: el
+ * informe de los volcanes, desde que copiás la consigna hasta que lo
+ * entregás por correo. Todos usan `steps`, así el simulador se acuerda de
+ * lo que hiciste en el paso anterior.
+ *
+ * REGLA DE DISEÑO al tocar estos niveles: el simulador se remonta cuando
+ * cambia el escenario, así que un nivel puede pasar del navegador al editor
+ * pero NO puede volver. Si un nivel vuelve al escenario anterior, ese
+ * escenario arranca de cero y la tarea se corta por la mitad. Por eso los
+ * niveles 6 y 7 hacen primero todo lo del navegador y después todo lo del
+ * documento. */
 const world14: Activity[] = [
   makeActivity({
     worldId: "island14",
     levelNumber: 1,
     title: "Repaso de atajos",
-    subtitle: "Ctrl + C / V",
-    instruction: "Hacé cada atajo que aparece.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
-    targets: ["Ctrl+C", "Ctrl+V", "Ctrl+A"],
+    subtitle: "Ctrl + A, Ctrl + C y Ctrl + V",
+    instruction: "Pasá la consigna a tu informe sin escribirla de nuevo.",
+    listenText: "Seleccioná la consigna con Control y A, copiala con Control y C y pegala con Control y V.",
+    /* El orden era Ctrl+C, Ctrl+V, Ctrl+A: copiar antes de seleccionar y
+       seleccionar al final, cuando ya no servía para nada. */
+    targets: ["Ctrl+A", "Ctrl+C", "Ctrl+V"],
+    scene: {
+      docLabel: "informe-volcanes.doc",
+      sourceLabel: "Consigna de la seño",
+      source: "Explicar por qué el volcán Villarrica sigue activo.",
+      targetLabel: "Tu informe",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná toda la consigna con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copiala con Ctrl + C. Mirá el portapapeles de acá abajo: ahí queda guardada." },
+      { combo: "Ctrl+V", prompt: "Pegala arriba de tu informe con Ctrl + V, así la tenés a la vista mientras escribís." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 3,
-    description: "Repasá los atajos que ya conocés.",
+    description: "Seleccionar, copiar y pegar: los tres van juntos y en ese orden.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 2,
-    title: "Rehacer",
-    subtitle: "Ctrl + Y",
-    instruction: "Hacé el atajo para rehacer.",
-    listenText: "Mantené Control y apretá Y para rehacer.",
-    targets: ["Ctrl+Y", "Ctrl+Z", "Ctrl+Y"],
+    title: "Deshacer y rehacer",
+    subtitle: "Ctrl + Z y Ctrl + Y",
+    instruction: "Te arrepentiste de un cambio, y después te arrepentiste de haberte arrepentido.",
+    listenText: "Pegá con Control y V, deshacé con Control y Z y volvé a traerlo con Control y Y.",
+    /* Era Ctrl+Y, Ctrl+Z, Ctrl+Y: rehacer primero, cuando todavía no había
+       nada deshecho, o sea que el atajo no hacía nada. */
+    targets: ["Ctrl+V", "Ctrl+Z", "Ctrl+Y"],
+    scene: {
+      docLabel: "informe-volcanes.doc",
+      sourceLabel: "Conclusión que escribiste ayer",
+      source: "Sigue activo porque debajo del volcán el magma nunca se enfría del todo.",
+      /* Arranca con la conclusión ya copiada: el nivel es sobre deshacer y
+         rehacer, no sobre copiar, así que no lo hace empezar copiando. */
+      clipboard: "Sigue activo porque debajo del volcán el magma nunca se enfría del todo.",
+      targetLabel: "Tu informe",
+    },
+    steps: [
+      { combo: "Ctrl+V", prompt: "Ya tenías copiada la conclusión. Pegala en el informe con Ctrl + V." },
+      { combo: "Ctrl+Z", prompt: "Lo pensás mejor y te parece que quedó mal. Sacala con Ctrl + Z." },
+      { combo: "Ctrl+Y", prompt: "La seño te dice que estaba bien. Ctrl + Y la trae de vuelta sin tener que escribirla otra vez: eso es rehacer." },
+    ],
     mode: "assisted",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Aprendé a rehacer con Ctrl + Y.",
+    description: "Ctrl + Z va para atrás y Ctrl + Y vuelve para adelante.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 3,
-    title: "Guardar",
+    title: "Guardar los cambios",
     subtitle: "Ctrl + S",
-    instruction: "Hacé el atajo para guardar.",
-    listenText: "Mantené Control y apretá S para guardar.",
-    targets: ["Ctrl+S", "Ctrl+S", "Ctrl+S"],
+    instruction: "Sumá el dato al informe y guardalo antes de cerrar.",
+    listenText: "Seleccioná el dato, copialo, pegalo y guardá el informe con Control y S.",
+    targets: ["Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+S"],
+    scene: {
+      docLabel: "informe-volcanes.doc",
+      sourceLabel: "Dato que encontraste",
+      source: "El Villarrica mide 2.847 metros y tuvo su última erupción en 2015.",
+      targetLabel: "Tu informe",
+    },
+    steps: [
+      { combo: "Ctrl+A", prompt: "Seleccioná el dato con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copialo con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegalo en el informe con Ctrl + V. Mirá arriba: el archivo pasó a decir «sin guardar»." },
+      { combo: "Ctrl+S", prompt: "Guardá con Ctrl + S. Recién ahí el cambio queda en la compu y no se pierde si se apaga." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 4,
-    description: "Guardá tu trabajo con Ctrl + S.",
+    description: "Cambiar algo no es guardarlo: hasta que no hacés Ctrl + S, el archivo sigue sin guardar.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 4,
     title: "Pestaña anterior",
     subtitle: "Ctrl + Shift + Tab",
-    instruction: "Hacé el atajo de tres teclas.",
+    instruction: "Volvé para atrás hasta la pestaña donde estaba la consigna.",
     /* Reservado por el navegador, igual que los de la isla 12: se pide el
        teclado del juego y no el real. */
-    listenText: "Tocá Control, Shift y Tab en el teclado del juego.",
-    targets: ["Ctrl+Shift+Tab", "Ctrl+Shift+Tab"],
+    listenText: "Tocá Control, Shift y Tab en el teclado del juego para volver a la pestaña anterior.",
+    targets: ["Ctrl+Shift+Tab", "Ctrl+Shift+Tab", "Ctrl+Shift+Tab"],
+    scene: {
+      activeTab: 3,
+      tabs: [
+        { title: "Consigna", kind: "texto", lines: ["Trabajo práctico", "Explicar por qué el Villarrica sigue activo."] },
+        { title: "Fotos del volcán", kind: "buscador", lines: ["volcán Villarrica", "El Villarrica visto desde Pucón", "La última erupción, en 2015"] },
+        { title: "Mapa de Chile", kind: "mapa", lines: ["Volcán Villarrica", "Región de La Araucanía, cerca de Pucón"] },
+        { title: "Video del cráter", kind: "video", lines: ["Adentro del cráter", "3:48"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+Shift+Tab", prompt: "Estás en el video. Ctrl + Tab va para adelante; sumándole Shift va para ATRÁS: la anterior es el mapa." },
+      { combo: "Ctrl+Shift+Tab", prompt: "Otra vez para atrás con Ctrl + Shift + Tab y llegás a las fotos." },
+      { combo: "Ctrl+Shift+Tab", prompt: "Una más y estás en la consigna, que era adonde querías volver." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 5,
-    description: "Volvé a la pestaña anterior con tres teclas.",
+    description: "Ctrl + Tab va para adelante; con Shift, para atrás.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 5,
-    title: "Combinaciones largas",
-    subtitle: "Tres teclas",
-    instruction: "Hacé cada atajo de tres teclas.",
-    listenText: "Hacé cada atajo de tres teclas.",
-    targets: ["Ctrl+Shift+T", "Ctrl+Shift+Tab", "Ctrl+Shift+N"],
+    title: "Tres teclas a la vez",
+    subtitle: "Ctrl + Shift + T / Tab / N",
+    instruction: "Arreglá lo que cerraste sin querer y buscá algo en privado.",
+    listenText: "Hacé cada atajo de tres teclas con el teclado del juego.",
+    targets: ["Ctrl+W", "Ctrl+Shift+T", "Ctrl+Shift+Tab", "Ctrl+Shift+N"],
+    scene: {
+      activeTab: 2,
+      tabs: [
+        { title: "Consigna", kind: "texto", lines: ["Trabajo práctico", "Explicar por qué el Villarrica sigue activo."] },
+        { title: "Fotos del volcán", kind: "buscador", lines: ["volcán Villarrica", "El Villarrica visto desde Pucón", "La última erupción, en 2015"] },
+        { title: "Video del cráter", kind: "video", lines: ["Adentro del cráter", "3:48"] },
+      ],
+      opens: [
+        { title: "Regalos", kind: "buscador", lines: ["regalos para hermana de 8 años", "Diez ideas de regalo", "Juegos de mesa para toda la familia"] },
+      ],
+    },
+    steps: [
+      { combo: "Ctrl+W", prompt: "El video ya lo viste entero. Cerralo con Ctrl + W." },
+      { combo: "Ctrl+Shift+T", prompt: "¡Uy! Te faltaba anotar un dato de ese video. Ctrl + Shift + T trae de vuelta la última pestaña que cerraste." },
+      { combo: "Ctrl+Shift+Tab", prompt: "Ya lo anotaste. Volvé para atrás con Ctrl + Shift + Tab hasta las fotos." },
+      { combo: "Ctrl+Shift+N", prompt: "Última: querés buscar el regalo de tu hermana sin que le quede en el historial. Abrí una ventana privada con Ctrl + Shift + N." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 6,
-    description: "Practicá combinaciones de tres teclas.",
+    description: "Ctrl + Shift + T te salva cuando cerrás una pestaña sin querer.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 6,
     title: "Reto experto",
-    subtitle: "Todos los atajos",
-    instruction: "Hacé cada atajo que aparece.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
+    subtitle: "Del navegador al documento",
+    instruction: "Recuperá la fuente, copiala al informe y guardá.",
     /* Sin Alt+Tab: lo maneja el sistema operativo y no hay forma de
        capturarlo, así que sacaba al alumno del juego (ver la nota del nivel 4
-       de la isla 12). Lo reemplaza Ctrl+Shift+N, que ya es de esta isla. */
-    targets: ["Ctrl+C", "Ctrl+Shift+Tab", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Z"],
+       de la isla 12). Lo reemplazan los atajos de tres teclas de esta isla. */
+    listenText: "Hacé cada atajo que te pide el paso, con el teclado del juego.",
+    targets: ["Ctrl+Shift+T", "Ctrl+Shift+Tab", "Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+S"],
+    scene: {
+      activeTab: 1,
+      tabs: [
+        { title: "Consigna", kind: "texto", lines: ["Trabajo práctico", "Explicar por qué el Villarrica sigue activo."] },
+        { title: "Mapa de Chile", kind: "mapa", lines: ["Volcán Villarrica", "Región de La Araucanía, cerca de Pucón"] },
+      ],
+      opens: [
+        { title: "Enciclopedia", kind: "diccionario", lines: ["volcán activo", "El que tuvo erupciones en los últimos diez mil años y puede volver a tenerlas."] },
+      ],
+      docLabel: "informe-volcanes.doc",
+      sourceLabel: "Lo que copiaste de la enciclopedia",
+      source: "Un volcán activo es el que tuvo erupciones en los últimos diez mil años y puede volver a tenerlas.",
+      targetLabel: "Tu informe",
+    },
+    steps: [
+      { combo: "Ctrl+Shift+T", prompt: "Cerraste sin querer la pestaña de la enciclopedia. Traela de vuelta con Ctrl + Shift + T." },
+      { combo: "Ctrl+Shift+Tab", prompt: "Volvé una pestaña para atrás con Ctrl + Shift + Tab: ahí está el mapa con el nombre completo del volcán." },
+      { combo: "Ctrl+A", prompt: "Ya tenés todo. Pasá al informe y seleccioná con Ctrl + A la definición que copiaste." },
+      { combo: "Ctrl+C", prompt: "Copiala con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegala en el informe con Ctrl + V." },
+      { combo: "Ctrl+S", prompt: "Guardá con Ctrl + S antes de cerrar, o el cambio se pierde." },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 6,
-    description: "Cerrá la isla como un experto en atajos.",
+    description: "Los atajos del navegador y los del documento, en una sola tarea.",
   }),
   makeActivity({
     worldId: "island14",
     levelNumber: 7,
     title: "Maestro de atajos",
     subtitle: "El reto más difícil",
-    instruction: "Hacé cada atajo que aparece, sin equivocarte.",
-    listenText: "Hacé cada atajo que aparece en pantalla.",
-    /* Un escalón sobre "Reto experto": tanda más larga y cargada de atajos de
+    instruction: "Último día antes de entregar: dejá todo listo.",
+    /* Un escalón sobre "Reto experto": más largo y con los tres atajos de
        TRES teclas, que son los que más cuestan. */
-    targets: ["Ctrl+Shift+T", "Ctrl+Y", "Ctrl+Shift+N", "Ctrl+S", "Ctrl+Shift+Tab", "Ctrl+T"],
+    listenText: "Hacé cada atajo que te pide el paso, con el teclado del juego.",
+    targets: ["Ctrl+T", "Ctrl+Shift+Tab", "Ctrl+Shift+N", "Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+S"],
+    scene: {
+      tabs: [
+        { title: "Fotos del volcán", kind: "buscador", lines: ["volcán Villarrica", "El Villarrica visto desde Pucón", "La última erupción, en 2015"] },
+        { title: "Consigna", kind: "texto", lines: ["Trabajo práctico", "Entregar el informe por correo antes del viernes."] },
+      ],
+      opens: [
+        { title: "Correo", kind: "mensajes", lines: ["Seño Ana: no se olviden de entregar el viernes", "Vos: ¡ya casi lo tengo!"] },
+        { title: "Correo privado", kind: "mensajes", lines: ["Entrar con tu cuenta", "Nadie más va a ver que entraste"] },
+      ],
+      docLabel: "informe-volcanes.doc",
+      sourceLabel: "Tu informe terminado",
+      source: "El Villarrica sigue activo porque el magma que tiene debajo nunca se enfría del todo.",
+      targetLabel: "Correo para la seño",
+    },
+    steps: [
+      { combo: "Ctrl+T", prompt: "Abrí una pestaña con Ctrl + T para entrar al correo de la escuela." },
+      { combo: "Ctrl+Shift+Tab", prompt: "Antes de escribir, volvé para atrás con Ctrl + Shift + Tab y releé la consigna." },
+      { combo: "Ctrl+Shift+N", prompt: "Estás en la compu de la escuela y no querés dejar tu cuenta abierta. Abrí una ventana privada con Ctrl + Shift + N." },
+      { combo: "Ctrl+A", prompt: "Pasá al informe y seleccionalo entero con Ctrl + A." },
+      { combo: "Ctrl+C", prompt: "Copialo con Ctrl + C." },
+      { combo: "Ctrl+V", prompt: "Pegalo en el correo para la seño con Ctrl + V." },
+      { combo: "Ctrl+S", prompt: "Guardá tu copia con Ctrl + S, por las dudas. ¡Entregado!" },
+    ],
     mode: "independent",
     inputType: "shortcut",
     difficulty: 7,
-    description: "Cerrá el juego encadenando los atajos más difíciles.",
+    description: "Siete atajos encadenados para terminar y entregar el trabajo.",
   }),
 ];
 
