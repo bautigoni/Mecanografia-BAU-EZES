@@ -1410,7 +1410,10 @@ const world12: Activity[] = [
     title: "Nueva pestaña",
     subtitle: "Ctrl + T",
     instruction: "Hacé el atajo para abrir una pestaña.",
-    listenText: "Mantené Control y apretá T para abrir una pestaña.",
+    /* Ojo con la consigna hablada de esta isla: sus atajos se los queda el
+       navegador (Ctrl+W hasta cierra la pestaña y se lleva la partida), así
+       que se pide tocar el teclado DEL JUEGO y no el de verdad. */
+    listenText: "Tocá Control y T en el teclado del juego para abrir una pestaña.",
     targets: ["Ctrl+T", "Ctrl+T", "Ctrl+T"],
     mode: "assisted",
     inputType: "shortcut",
@@ -1423,7 +1426,7 @@ const world12: Activity[] = [
     title: "Cerrar pestaña",
     subtitle: "Ctrl + W",
     instruction: "Hacé el atajo para cerrar la pestaña.",
-    listenText: "Mantené Control y apretá W para cerrar la pestaña.",
+    listenText: "Tocá Control y W en el teclado del juego para cerrar la pestaña.",
     targets: ["Ctrl+W", "Ctrl+W", "Ctrl+W"],
     mode: "assisted",
     inputType: "shortcut",
@@ -1436,7 +1439,7 @@ const world12: Activity[] = [
     title: "Cambiar de pestaña",
     subtitle: "Ctrl + Tab",
     instruction: "Hacé el atajo para cambiar de pestaña.",
-    listenText: "Mantené Control y apretá Tab para cambiar de pestaña.",
+    listenText: "Tocá Control y Tab en el teclado del juego para cambiar de pestaña.",
     targets: ["Ctrl+Tab", "Ctrl+Tab", "Ctrl+Tab"],
     mode: "independent",
     inputType: "shortcut",
@@ -1449,7 +1452,7 @@ const world12: Activity[] = [
     title: "Cambiar de ventana",
     subtitle: "Alt + Tab",
     instruction: "Hacé el atajo para cambiar de ventana.",
-    listenText: "Mantené Alt y apretá Tab para cambiar de ventana.",
+    listenText: "Tocá Alt y Tab en el teclado del juego para cambiar de ventana.",
     targets: ["Alt+Tab", "Alt+Tab", "Alt+Tab"],
     mode: "independent",
     inputType: "shortcut",
@@ -1654,7 +1657,9 @@ const world14: Activity[] = [
     title: "Pestaña anterior",
     subtitle: "Ctrl + Shift + Tab",
     instruction: "Hacé el atajo de tres teclas.",
-    listenText: "Mantené Control y Shift y apretá Tab.",
+    /* Reservado por el navegador, igual que los de la isla 12: se pide el
+       teclado del juego y no el real. */
+    listenText: "Tocá Control, Shift y Tab en el teclado del juego.",
     targets: ["Ctrl+Shift+Tab", "Ctrl+Shift+Tab"],
     mode: "independent",
     inputType: "shortcut",

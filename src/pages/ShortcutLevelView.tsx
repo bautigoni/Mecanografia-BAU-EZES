@@ -4,11 +4,21 @@
  * Generic keyboard-shortcut engine used by every Activity with
  * inputType === "shortcut".
  *
- * KEY SAFETY RULE: every shortcut that would normally be intercepted by the
- * browser (Ctrl+T, Ctrl+W, Ctrl+Tab, Ctrl+F, Alt+Tab…) is demonstrated
- * inside a VIRTUAL environment that lives entirely within this component.
- * event.preventDefault() is called on all capture-phase keydowns so the
- * real browser action never fires while this page is open.
+ * REGLA DE SEGURIDAD: todo atajo se demuestra dentro de un entorno VIRTUAL
+ * que vive entero en este componente, y se llama a event.preventDefault() en
+ * todos los keydown de la fase de captura.
+ *
+ * PERO eso NO alcanza para todos, y conviene tenerlo claro porque acá se
+ * había afirmado lo contrario: hay atajos que el navegador y el sistema se
+ * reservan y que una página NO puede interceptar ni frenar. Ctrl+T abre una
+ * pestaña de verdad, Ctrl+W CIERRA la pestaña y se lleva puesta la partida,
+ * Ctrl+Tab cambia de pestaña y Alt+Tab cambia de ventana. En esos casos el
+ * keydown ni siquiera llega a la página, así que tampoco se puede puntuar.
+ *
+ * Por eso `esReservado()` los marca y, cuando toca uno, el nivel pide
+ * explícitamente que se use el teclado EN PANTALLA en vez del teclado real,
+ * y no invita a apretar las teclas físicas. Los que sí se pueden frenar
+ * (Ctrl+A/C/V/Z/F/S/Y, Enter, Escape) siguen andando con el teclado real.
  *
  * Virtual environments available:
  *   "text-editor"   — Ctrl+C / Ctrl+V / Ctrl+A / Ctrl+Z / Enter / Escape
@@ -63,6 +73,23 @@ function comboEnv(mods: string[], key: string): VirtualEnvKind {
   }
   if (k === "enter" || k === "escape") return "dialog";
   return "text-editor";
+}
+
+/** Atajos que el navegador o el sistema operativo se quedan siempre: la
+ *  página no los recibe y preventDefault() no los frena. Se hacen con el
+ *  teclado de la pantalla.
+ *
+ *  Ctrl+T / Ctrl+N abren pestaña o ventana, Ctrl+W cierra la pestaña — esa
+ *  es la peor, porque se lleva la partida —, Ctrl+Tab cambia de pestaña y
+ *  Alt+Tab es del sistema. Cubre también las variantes con Shift
+ *  (Ctrl+Shift+T, Ctrl+Shift+N, Ctrl+Shift+Tab) por la misma razón. */
+function esReservado(combo: Combo): boolean {
+  const k = combo.key.toLowerCase();
+  if (combo.mods.includes("Alt") && k === "tab") return true;
+  if (combo.mods.includes("Ctrl")) {
+    if (k === "t" || k === "w" || k === "n" || k === "tab") return true;
+  }
+  return false;
 }
 
 /* Clear, simulator-safe copy per combo (§6) — never just "hacé el atajo". */
@@ -311,6 +338,20 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
     }
   }
 
+  /* Ctrl+W cierra la pestaña de verdad y se lleva la partida a medio hacer, y
+     es un accidente probable justamente en los niveles que enseñan a cerrar
+     pestañas. Mientras el nivel tenga atajos reservados y no esté terminado
+     se pide confirmación antes de descargar la página: no lo evita, pero
+     convierte "perdí todo" en "¿seguro que querés salir?".
+     Se saca al completar el nivel, así el final no queda con el cartel. */
+  const hayReservados = combos.some(esReservado);
+  useEffect(() => {
+    if (!hayReservados || prog.completed) return;
+    const alSalir = (ev: BeforeUnloadEvent) => { ev.preventDefault(); ev.returnValue = ""; };
+    window.addEventListener("beforeunload", alSalir);
+    return () => window.removeEventListener("beforeunload", alSalir);
+  }, [hayReservados, prog.completed]);
+
   function retry() {
     prog.reset();
     setClicked({});
@@ -330,6 +371,8 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
   const currentStep = steps?.[currentIdx];
   /* El escenario sale del atajo salvo que el guion diga otra cosa. */
   const currentEnv = (currentStep?.env as VirtualEnvKind | undefined) ?? current?.env;
+  /* ¿Este atajo se lo queda el navegador? Cambia cómo se pide hacerlo. */
+  const reservado = current ? esReservado(current) : false;
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden font-body text-text animate-page-fade">
@@ -468,23 +511,34 @@ export function ShortcutLevelView({ activity }: { activity: Activity }) {
             envOverride={currentEnv}
           />
 
-          {/* Keycap display (always shown as the safe fallback) */}
+          {/* Teclado en pantalla. Para los atajos reservados no es un plan B:
+              es el ÚNICO camino, porque el navegador se queda con la tecla. */}
           <div className="flex flex-col items-center gap-2 pt-2">
             <span className="flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs sm:text-sm font-medium text-text shadow-sm backdrop-blur">
               <Monitor size={16} className="text-accent-strong" />
               {current ? comboActionHint(current) : "Hacé el atajo dentro del simulador."}
             </span>
-            <span className="text-[11px] text-muted">Usá las teclas del juego o el teclado.</span>
+            {reservado ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-amber-100/90 px-3 py-1 text-[11px] sm:text-xs font-bold text-amber-900 shadow-sm">
+                <span aria-hidden="true">👇</span>
+                Este atajo lo maneja el navegador: tocá las teclas de acá abajo.
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted">Usá las teclas del juego o el teclado.</span>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-1.5" aria-label={`Atajo: ${current?.raw ?? ""}`}>
               {current?.caps.map((cap, i) => (
                 <span key={`${i}:${cap}`} className="flex items-center gap-1.5">
                   <button
                     type="button"
                     className={[
-                      "min-w-[2.5rem] select-none rounded-xl border border-white/80 bg-gradient-to-b from-white to-bg-soft px-3 py-2 text-sm sm:text-base font-bold text-text shadow-btn transition",
+                      "min-w-[2.5rem] select-none rounded-xl border px-3 py-2 text-sm sm:text-base font-bold shadow-btn transition",
                       clicked[`${i}:${cap}`]
-                        ? "from-accent to-accent-strong text-white scale-95 shadow-inner"
-                        : "hover:-translate-y-0.5 hover:shadow-btn-hover active:scale-95",
+                        ? "border-white/80 bg-gradient-to-b from-accent to-accent-strong text-white scale-95 shadow-inner"
+                        : reservado
+                          /* Resaltadas: son el camino real, no un adorno. */
+                          ? "border-amber-300 bg-gradient-to-b from-amber-50 to-amber-100 text-amber-900 ring-2 ring-amber-300/70 hover:-translate-y-0.5 hover:shadow-btn-hover active:scale-95"
+                          : "border-white/80 bg-gradient-to-b from-white to-bg-soft text-text hover:-translate-y-0.5 hover:shadow-btn-hover active:scale-95",
                     ].join(" ")}
                     onClick={() => onKeycapClick(i, cap)}
                     tabIndex={-1}
