@@ -84,13 +84,13 @@ export type LevelPosition = {
    the level order (index 0 = level 1, index 1 = level 2, …). */
 export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = {
   island1: [
-    { x: 35.8, y: 55.3, scale: 1.78, rotateX: -11, perspective: 290, numX: -7, numY: -32, numSize: 1.35, numYHover: -29 },
-    { x: 28.2, y: 42.8, scale: 1.68, numX: -1, numY: -7, numSize: 1.1 },
-    { x: 42.7, y: 34.7, scale: 1.58, rotateX: 37.5, numX: -0.5, numY: -2, numSize: 0.96 },
-    { x: 61.5, y: 29.9, scale: 1.56, rotateX: 21.5, numX: -2, numY: -3.5, numSize: 1.26 },
-    { x: 72.8, y: 38.5, scale: 1.66, rotateX: 27, rotateY: 4.5, numX: -2, numY: -3.5 },
-    { x: 59, y: 50.4, scale: 1.72, rotateX: 4.5, perspective: 80, numY: -8 },
-    { x: 73.6, y: 55.4, scale: 1.76, rotateX: -7, rotateY: -4, perspective: 670, numX: -2, numY: -7, numSize: 1.19 },
+    { x: 33.5, y: 56.6, scale: 1.92, rotateX: -11, perspective: 290, numX: -7, numY: -32, numSize: 1.35, numYHover: -29 },
+    { x: 25.7, y: 43.3, scale: 1.84, rotateX: 27.5, numX: -6, numY: -24.5, numSize: 1.1 },
+    { x: 41.7, y: 33.9, scale: 1.84, rotateX: 39.5, rotateZ: 0.5, numX: -3, numY: -21, numSize: 0.96 },
+    { x: 62.8, y: 28.7, scale: 1.82, rotateX: 43.5, rotateY: -3.5, rotateZ: 6.5, numX: -3, numY: -18.5, numSize: 0.93 },
+    { x: 75.6, y: 38.3, scale: 1.8, rotateX: 27, rotateY: 4.5, numX: -5.5, numY: -22 },
+    { x: 60.3, y: 51.7, scale: 1.88, rotateX: 10.5, perspective: 80, numX: -8, numY: -27 },
+    { x: 76.5, y: 57.7, scale: 1.91, rotateX: 18.5, rotateY: 8, perspective: 670, numX: -5, numY: -25.5, numSize: 1.19 },
   ],
 
   island2: [
@@ -132,13 +132,13 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
        Antes tenia 81px de margen arriba y 29 abajo, y el boton salia corrido
        hacia abajo en TODAS las islas. El original esta en _backups/.
     */
-    { x: 49.3, y: 73.8, scale: 2.84, rotateX: 13.9, perspective: 4000 },  // N1 — disco abajo-centro    (anillo 0.537, el más cercano → casi sin inclinar)
-    { x: 25.8, y: 70.1, scale: 2.81, rotateX: 16.4, perspective: 4000 },  // N2 — disco abajo-izquierda (anillo 0.531)
-    { x: 27.7, y: 48.6, scale: 2.69, rotateX: 24.4, perspective: 4000 },  // N3 — disco medio-izquierda (anillo 0.504)
-    { x: 55.4, y: 32.7, scale: 2.44, rotateX: 25.3, perspective: 4000 },  // N4 — disco arriba-centro   (anillo 0.500, el más lejano → el más acostado)
-    { x: 76.2, y: 40.5, scale: 2.56, rotateX: 23.4, perspective: 4000 },  // N5 — disco arriba-derecha  (anillo 0.507)
-    { x: 73.6, y: 64.2, scale: 2.88, rotateX: 16.7, perspective: 4000 },  // N6 — disco abajo-derecha   (anillo 0.530, centro afinado a ojo)
-    { x: 56.4, y: 52.7, scale: 2.60, rotateX: 16.8, perspective: 4000 },  // N7 — disco central         (anillo 0.529)
+    { x: 55.4, y: 32.8, scale: 2.24, rotateX: 13.9, perspective: 4000, numX: -3, numY: -23.5 },  // N1 — disco abajo-centro    (anillo 0.537, el más cercano → casi sin inclinar)
+    { x: 76.4, y: 40.3, scale: 2.36, rotateX: 16.4, perspective: 4000, numY: -23.5 },  // N2 — disco abajo-izquierda (anillo 0.531)
+    { x: 74, y: 64.8, scale: 2.69, perspective: 4000, numY: -27.5 },  // N3 — disco medio-izquierda (anillo 0.504)
+    { x: 49.3, y: 73.9, scale: 2.44, rotateX: 1.5, perspective: 4000, numY: -27 },  // N4 — disco arriba-centro   (anillo 0.500, el más lejano → el más acostado)
+    { x: 26, y: 70.2, scale: 2.56, rotateX: 23.4, perspective: 4000, numY: -26.5 },  // N5 — disco arriba-derecha  (anillo 0.507)
+    { x: 27.7, y: 48.9, scale: 2.39, rotateX: 16.7, perspective: 4000, numY: -24 },  // N6 — disco abajo-derecha   (anillo 0.530, centro afinado a ojo)
+    { x: 56.4, y: 52.9, scale: 2.39, rotateX: 13.5, perspective: 4000, numY: -24 },  // N7 — disco central         (anillo 0.529)
   ],
 
   island3: [
@@ -169,13 +169,13 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
   ],
 
   island5: [
-    { x: 31, y: 28 },
-    { x: 41, y: 39 },
-    { x: 53, y: 45 },
-    { x: 43, y: 53 },
-    { x: 28, y: 46 },
-    { x: 31, y: 38 },
-    { x: 55, y: 58 },  // N7 - separado de N2, que estaba encima; provisoria
+    { x: 20.6, y: 64.2, scale: 1.78, rotateX: 23.5, numX: -1.5, numY: -13 },
+    { x: 46.7, y: 69.1, scale: 1.53, numX: -2, numY: -11.5 },
+    { x: 49.6, y: 50.3, scale: 1.4, numX: -1, numY: -11 },
+    { x: 34.5, y: 39.3, scale: 1.4, numX: -3.5, numY: -11 },
+    { x: 46.8, y: 27.7, scale: 1.38, numX: -2, numY: -11 },
+    { x: 62.1, y: 36.5, scale: 1.32, numX: -1.5, numY: -10 },
+    { x: 87.5, y: 55.2, scale: 1.55, numX: -4, numY: -12 },  // N7 - separado de N2, que estaba encima; provisoria
   ],
 
   island6: [
@@ -202,23 +202,23 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
        OJO: las rotaciones ahora afectan SOLO a la imagen del botón, no al
        número ni a los badges — antes el CSS rotaba el botón entero y dejaba
        los números de esta isla muy achatados. Verificar island6 a ojo. */
-    { x: 20.8, y: 83.8, scale: 1.84, rotateX: -28, rotateY: 2, perspective: 4000 },  // N1 — disco rúnico abajo-izquierda (inicio, lleva la nave)
-    { x: 19.8, y: 46.3, scale: 1.53, rotateX: 48, perspective: 4000 },               // N2 — disco de la cornisa izquierda (más grande)
-    { x: 31.1, y: 38, scale: 1.5, rotateX: 58, perspective: 4000 },                  // N3 — terraza verde sobre la cornisa
-    { x: 46.3, y: 34.5, scale: 1.15, rotateX: 49, perspective: 4000 },               // N4 — escalones de piedra hacia el centro
-    { x: 57.4, y: 44.5, scale: 1.6, rotateX: 49, rotateY: 3, rotateZ: 4, perspective: 4000 },   // N5 — disco rúnico central
-    { x: 76.5, y: 60.1, scale: 1.8, rotateX: -40, rotateZ: 6, perspective: 4000 },   // N6 — disco rúnico derecho (abajo)
-    { x: 62.3, y: 23.5, scale: 1.85, rotateX: 57, rotateY: 2, rotateZ: -1, perspective: 4000 }, // N7 — explanada al pie del portal
+    { x: 24.5, y: 72.8, scale: 2.5, rotateX: -35, rotateY: 2, perspective: 4000, numX: -1, numY: -21 },  // N1 — disco rúnico abajo-izquierda (inicio, lleva la nave)
+    { x: 20.6, y: 44.9, scale: 1.53, rotateX: 54, rotateZ: -10.5, perspective: 4000, numX: -4, numY: -6 },               // N2 — disco de la cornisa izquierda (más grande)
+    { x: 8.1, y: 32.5, scale: 1.51, rotateX: 71, rotateY: 1.5, rotateZ: -19, perspective: 4000, numX: -2.5, numSize: 0.66 },                  // N3 — terraza verde sobre la cornisa
+    { x: 31.8, y: 38, scale: 1.36, rotateX: 64.5, perspective: 4000, numX: -0.5, numY: -1 },               // N4 — escalones de piedra hacia el centro
+    { x: 77.1, y: 55.3, scale: 2.37, rotateX: 49, rotateY: 3, rotateZ: 4, perspective: 4000, numX: 2.5, numY: -11.5 },   // N5 — disco rúnico central
+    { x: 60.1, y: 42.4, scale: 1.51, rotateX: -57.5, rotateY: -3.5, rotateZ: -2.5, perspective: 4000, numX: -1.5, numY: -3.5 },   // N6 — disco rúnico derecho (abajo)
+    { x: 63.8, y: 27.4, scale: 1.62, rotateX: 61.5, rotateY: 2, rotateZ: 0.5, perspective: 4000, numY: -2.5, numSize: 0.88 }, // N7 — explanada al pie del portal
   ],
 
   island7: [
-    { x: 25.4, y: 77.5, scale: 1.6 },
-    { x: 73.5, y: 70.6, scale: 1.2 },
-    { x: 83.2, y: 38.7 },
-    { x: 47.1, y: 52.8, scale: 1.1 },
-    { x: 40.3, y: 42.3 },
-    { x: 28.5, y: 45.9 },
-    { x: 63, y: 43 },
+    { x: 78.6, y: 53.9, scale: 2.5, rotateX: 25.5, numX: -4, numY: -25, numSize: 1.2 },
+    { x: 73.5, y: 70.5, scale: 2.5, rotateX: 23.5, numX: -1.5, numY: -28 },
+    { x: 47.4, y: 70.6, scale: 2.5, numX: -2, numY: -30 },
+    { x: 20.7, y: 61, scale: 2.5, rotateX: 15, rotateY: -1, numX: -6.5, numY: -30 },
+    { x: 28, y: 38.1, scale: 2.22, rotateX: 25.5, numX: -3.5, numY: -23.5 },
+    { x: 52.4, y: 39.9, scale: 2.38, rotateX: 21, rotateZ: 5, numX: -1, numY: -24.5 },
+    { x: 81.2, y: 31.4, scale: 2.5, rotateX: 44, rotateZ: 2.5, numX: 2, numY: -22.5 },
     { x: 46, y: 56 },
   ],
 
@@ -280,13 +280,13 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
   ],
 
   island13: [
-    { x: 16.7, y: 57, scale: 1.4, rotateX: -42.5, rotateY: 1 },
-    { x: 56.7, y: 70.6, scale: 1.5, rotateX: 27 },
-    { x: 76.9, y: 60.1, scale: 1.5, rotateX: -40.5 },
-    { x: 62.7, y: 52.1 },
-    { x: 55.6, y: 24.9, scale: 0.9, rotateX: 41.5 },
-    { x: 34.9, y: 27.3, rotateX: -50 },
-    { x: 60, y: 40 },
+    { x: 16.2, y: 49.1, scale: 2.19, rotateX: -42.5, rotateY: 1, numX: -1.5, numY: -19 },
+    { x: 40.5, y: 45.1, scale: 2.19, rotateX: 50, numY: -13 },
+    { x: 66, y: 62.4, scale: 2.37, rotateX: -40.5, numY: -19.5 },
+    { x: 81.3, y: 51.1, scale: 2.5, rotateX: 51, numX: -2.5, numY: -13.5 },
+    { x: 69.3, y: 24, scale: 1.78, rotateX: 54.5, numX: -0.5, numY: -7.5 },
+    { x: 55.2, y: 21.4, scale: 1.73, rotateX: -59.5, numY: -6.5 },
+    { x: 34.5, y: 24.1, scale: 1.71, rotateX: 53.5, numY: -7.5 },
     { x: 46, y: 56 },
   ],
 
