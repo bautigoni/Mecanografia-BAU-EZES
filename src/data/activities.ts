@@ -2034,7 +2034,24 @@ const world14: Activity[] = [
   }),
 ];
 
-/* World 15 — Isla del gran reto: mezcla final de todo lo aprendido. */
+/* World 15 — Isla del gran reto: mezcla final de todo lo aprendido.
+ *
+ * Eran 8 y ahora son 7. El arte tiene un pedestal más arriba de todo, pero
+ * la propia lámina lo corta por la mitad: el nodo caía en y 2,7 %, o sea
+ * pegado al borde superior y debajo del HUD, así que el 4 no se veía ni se
+ * podía tocar y la isla se leía como 1-2-3-5-6-7-8. Es el mismo caso que la
+ * isla 3, y la misma advertencia: cuidado con subir un nodo de menos de ~5
+ * en esta pantalla.
+ *
+ * El que se sacó NO es el que estaba mal ubicado sino el que sobraba:
+ * "Búsqueda del reto" eran dos frases sueltas en minúscula, sin signos ni
+ * tildes ni arroba, o sea exactamente la misma destreza que "Frases del
+ * reto" pero tres niveles después. Su frase larga se mudó al nivel 3, que
+ * ahora va de frases cortas a frases largas. Así los 7 que quedan enseñan
+ * cada uno una cosa distinta y la dificultad sube sin repetirse:
+ *
+ *   1 letras 3 · 2 palabras 4 · 3 frases 5 · 4 signos y tildes 5
+ *   5 correo (arroba y Shift) 6 · 6 atajos 6 · 7 todo junto 7 */
 const world15: Activity[] = [
   makeActivity({
     worldId: "island15",
@@ -2066,14 +2083,17 @@ const world15: Activity[] = [
     worldId: "island15",
     levelNumber: 3,
     title: "Frases del reto",
-    subtitle: "Frases completas",
-    instruction: "Escribí la frase completa.",
-    listenText: "Escribí la frase completa.",
-    targets: ["soy un gran escritor", "llegue muy lejos", "casi gano el reto"],
+    subtitle: "De cortas a largas",
+    instruction: "Escribí la frase completa, aunque se vaya haciendo larga.",
+    listenText: "Escribí la frase completa. Las últimas son más largas.",
+    /* La última venía del nivel "Búsqueda del reto", que se sacó por repetir
+       esta misma destreza. Acá le da al nivel un final más largo, que es lo
+       único que aquel agregaba de verdad. */
+    targets: ["soy un gran escritor", "llegue muy lejos", "casi gano el reto", "los mejores juegos de teclado"],
     mode: "independent",
     inputType: "phrase",
     difficulty: 5,
-    description: "Escribí frases completas sin errores.",
+    description: "Escribí frases completas sin errores, cada vez más largas.",
   }),
   makeActivity({
     worldId: "island15",
@@ -2119,19 +2139,6 @@ const world15: Activity[] = [
   makeActivity({
     worldId: "island15",
     levelNumber: 7,
-    title: "Búsqueda del reto",
-    subtitle: "Buscar como experto",
-    instruction: "Escribí la búsqueda completa y apretá Enter.",
-    listenText: "Escribí la búsqueda completa y apretá Enter.",
-    targets: ["como ser un campeon de mecanografia", "los mejores juegos de teclado"],
-    mode: "independent",
-    inputType: "phrase",
-    difficulty: 6,
-    description: "Buscá información como un experto.",
-  }),
-  makeActivity({
-    worldId: "island15",
-    levelNumber: 8,
     title: "¡Gran final!",
     subtitle: "Todo junto",
     instruction: "Escribí cada frase exactamente como aparece.",
@@ -2143,7 +2150,7 @@ const world15: Activity[] = [
     ],
     mode: "independent",
     inputType: "phrase",
-    difficulty: 6,
+    difficulty: 7,
     description: "El gran final: todo lo que aprendiste, junto.",
     requiresAccent: true,
     requiresShift: true,

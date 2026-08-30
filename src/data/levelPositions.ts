@@ -304,11 +304,16 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
     { x: 44, y: 68 },
   ],
 
+  /* Eran 8. El que estaba en (43.9, 2.7) se sacó junto con su nivel: el arte
+     tiene un pedestal más arriba de todo, pero la propia lámina lo corta por
+     la mitad, así que a esa altura el nodo quedaba pegado al borde superior y
+     debajo del HUD — el 4 no se veía ni se podía tocar y la isla se leía como
+     1-2-3-5-6-7-8. Cuidado al subir un nodo de menos de ~5 en esta pantalla,
+     por eso mismo. Los 7 que quedan son los 7 pedestales enteros. */
   island15: [
     { x: 20.8, y: 79.3 },
     { x: 36.8, y: 62 },
     { x: 28.3, y: 25.5 },
-    { x: 43.9, y: 2.7 },
     { x: 53.6, y: 45.5 },
     { x: 78.5, y: 53.3 },
     { x: 51.8, y: 89.9 },
