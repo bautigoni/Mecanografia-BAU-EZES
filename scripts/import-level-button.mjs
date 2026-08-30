@@ -39,9 +39,13 @@ const SHEETS = {
   /* La 3 trae un libro apoyado a la derecha que se sale de la huella: no
      cuenta como base, pero sí obliga a dejarle lugar en el lienzo. */
   island3:  { file: "btn-island3.png",  crop: [54,  87, 750, 479], gap: 811, base: { cx: 367, cy: 225, w: 570 }, halo: { entrada: 85, umbral: 150 } },
-  /* huecos: las raicillas que cuelgan del musgo cierran lazos chicos contra
-     la base y dejaban el fondo adentro. */
-  island4:  { file: "btn-island4.png",  crop: [63, 140, 706, 456], gap: 800, base: { cx: 353, cy: 219, w: 530 }, huecos: 40 },
+  /* Relámina 2026-08-29: aro dorado con disco de pétalos de cerezo. Reemplaza
+     la piedra con musgo y raicillas, así que ya no lleva `huecos` — el arte
+     nuevo no cierra ningún lazo, y prenderlo acá agujerearía los puntos de
+     luz del aro, que son casi blancos y quedan encerrados en el dorado.
+     La decoración no se sale de la huella (sólo dos florcitas apoyadas sobre
+     el aro), por eso la base ocupa casi todo el recorte. */
+  island4:  { file: "btn-island4.png",  crop: [150, 165, 740, 455], gap: 951, base: { cx: 370, cy: 231, w: 724 } },
   /* halo: la neblina de suelo abajo del pasto es un degradé pintado que
      llega hasta el blanco; con alfa binario quedaba una franja crema opaca
      de borde duro alrededor de todo el botón. La entrada baja deja afuera

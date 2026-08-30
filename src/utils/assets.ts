@@ -100,7 +100,7 @@ const ISLAND_ART: Record<string, IslandArtEntry> = {
   island1:  { split: true },  // teclas: piedra helada, cristales y florcitas
   island2:  { split: true },               // piedra con pasto y florcitas
   island3:  { split: true },               // mármol y oro, pasto y pétalos
-  island4:  { split: true },               // piedra con musgo y hojas
+  island4:  { split: true },               // cerezo: aro dorado y pétalos
   island5:  { split: true },               // piedra con pasto y cubos de hielo
   island6:  { split: true },               // portal de cristal: runas y drusas
   island7:  { split: true },               // jardín: cerezo en flor
@@ -186,7 +186,7 @@ const LEVEL_NUMBER_DONE: Partial<Record<string, string>> = {
   island1:  "#7a143a",   // vino sobre turquesa claro   — 3.75:1
   island2:  "#b8ffe3",   // menta clara sobre verdeazul — 3.49:1
   island3:  "#5be8ba",   // menta sobre borgoña         — 4.30:1
-  island4:  "#b7f000",   // lima sobre verde oscuro     — 3.94:1
+  island4:  "#104e34",   // bosque sobre pétalo rosa    — 5.69:1
   island5:  "#b8ffe3",   // menta clara sobre azul      — 3.42:1
   island6:  "#facc15",   // dorado sobre índigo         — 3.63:1
   island7:  "#b8ffe3",   // menta clara sobre terracota — 3.40:1
