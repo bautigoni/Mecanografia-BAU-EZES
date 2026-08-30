@@ -151,12 +151,12 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
        fijo abajo de la pantalla, así que el 4 no se veía ni se podía tocar
        y la isla se leía como 1-2-3-5-6-7. Cuidado al bajar un nodo de ~85
        en esta pantalla, por eso mismo. */
-    { x: 53, y: 48 },   // N1 — upper-centre of the main chain
-    { x: 57, y: 60 },   // N2 — slightly down-right
-    { x: 67, y: 66 },   // N3 — bottom-right of the main chain
-    { x: 30, y: 69 },   // N4 — bottom-left
-    { x: 27, y: 59 },   // N5 — mid-left
-    { x: 35, y: 42 },   // N6 — upper-left (desafío final)
+    { x: 27.3, y: 60.5, scale: 1.89, rotateX: 30.5, numX: -1.5, numY: -20.5 },   // N1 — upper-centre of the main chain
+    { x: 31.2, y: 39, scale: 1.91, rotateX: 49, numX: -0.5, numY: -13.5 },   // N2 — slightly down-right
+    { x: 44.5, y: 25.2, scale: 1.76, rotateX: 42, numY: -13 },   // N3 — bottom-right of the main chain
+    { x: 69.6, y: 32.6, scale: 1.78, rotateX: 47.5, numY: -11.5 },   // N4 — bottom-left
+    { x: 81.3, y: 45.7, scale: 1.94, rotateX: 52.5, numY: -10.5 },   // N5 — mid-left
+    { x: 53.3, y: 54.3, scale: 1.83, rotateX: 44, numX: -1, numY: -13.5 },   // N6 — upper-left (desafío final)
   ],
 
   island4: [
@@ -164,13 +164,13 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
        "bottom-right small platform" in earlier art isn't a real platform
        in the painted scene (it's just decorative clouds), so all 6 levels
        ride the main chain in a path. */
-    { x: 49, y: 42 },   // N1 — upper-centre of the main chain
-    { x: 67, y: 60 },   // N2 — centre-right
-    { x: 52, y: 71 },   // N3 — centre of the main chain
-    { x: 38, y: 76 },   // N4 — bottom-centre
-    { x: 32, y: 62 },   // N5 — mid-left of the main chain
-    { x: 72, y: 74 },   // N6 — bottom-right of the main chain
-    { x: 60, y: 48 },   // N7 - provisoria, hueco arriba a la derecha
+    { x: 52.7, y: 55.8, scale: 1.45, rotateX: 21, numX: -0.5, numY: -18 },   // N1 — upper-centre of the main chain
+    { x: 38.6, y: 64 },   // N2 — centre-right
+    { x: 26.2, y: 54.3 },   // N3 — centre of the main chain
+    { x: 37, y: 43.2 },   // N4 — bottom-centre
+    { x: 57.4, y: 36.7 },   // N5 — mid-left of the main chain
+    { x: 75.4, y: 45.5 },   // N6 — bottom-right of the main chain
+    { x: 82, y: 56.2 },   // N7 - provisoria, hueco arriba a la derecha
   ],
 
   island5: [
@@ -228,15 +228,13 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
   ],
 
   island8: [
-    { x: 18.5, y: 35.4 },
-    { x: 27.9, y: 78.5 },
-    { x: 41.3, y: 92.8 },
-    { x: 73.6, y: 83.4 },
-    { x: 78.9, y: 59.9 },
-    { x: 77.1, y: 25.1 },
-    // Nudged a few % left + down (2026-06-02) so the marker clears the
-    // next-world entrance overlay that was eating the click target.
-    { x: 47, y: 15.5 },
+    { x: 20.1, y: 41.5, scale: 1.88, rotateX: 54.5, numX: 2, numY: -15.5, numSize: 0.86 },
+    { x: 29.5, y: 66.1, scale: 2.27, rotateX: 50, numX: 1, numY: -22.5 },
+    { x: 42.6, y: 79.1, scale: 2.38, rotateX: 44, numX: 2.5, numY: -22.5 },
+    { x: 77.5, y: 71.6, scale: 2.5, rotateX: 54.5, numX: 1.5, numY: -23.5 },
+    { x: 83.5, y: 55.8, scale: 1.97, rotateX: 52.5, numX: -1, numY: -21.5 },
+    { x: 65.7, y: 45.1, scale: 2.01, rotateX: 56, numY: -18.5 },
+    { x: 83.2, y: 34.7, scale: 2.3, rotateX: 64, numX: 2, numY: -16.5, numSize: 0.83 },
     { x: 44, y: 68 },
   ],
 
