@@ -304,19 +304,23 @@ export const islandLevelLayouts: Record<Activity["worldId"], LevelPosition[]> = 
     { x: 44, y: 68 },
   ],
 
-  /* Eran 8. El que estaba en (43.9, 2.7) se sacó junto con su nivel: el arte
-     tiene un pedestal más arriba de todo, pero la propia lámina lo corta por
-     la mitad, así que a esa altura el nodo quedaba pegado al borde superior y
-     debajo del HUD — el 4 no se veía ni se podía tocar y la isla se leía como
-     1-2-3-5-6-7-8. Cuidado al subir un nodo de menos de ~5 en esta pantalla,
-     por eso mismo. Los 7 que quedan son los 7 pedestales enteros. */
+  /* Eran 8 y quedaron 6, en dos bajas con motivos distintos:
+
+       - El nodo que estaba en (43.9, 2.7) caía sobre el pedestal que la propia
+         lámina corta por la mitad: quedaba pegado al borde superior y debajo
+         del HUD, así que no se veía ni se podía tocar y la isla se leía como
+         1-2-3-5-6-7-8. Cuidado al subir un nodo de menos de ~5 en esta
+         pantalla, por eso mismo.
+       - El que hacía de 3, en (14.7, 38.8), se sacó a pedido.
+
+     Los seis que quedan NO se movieron: cada botón conserva la posición que
+     tenía, y lo único que cambió es el número que le toca. */
   island15: [
-    { x: 20.8, y: 79.3 },
-    { x: 36.8, y: 62 },
-    { x: 28.3, y: 25.5 },
-    { x: 53.6, y: 45.5 },
-    { x: 78.5, y: 53.3 },
-    { x: 51.8, y: 89.9 },
-    { x: 87.2, y: 82.5 },
+    { x: 51.4, y: 72.6, scale: 1.32, rotateX: 25.5, numY: -12 },
+    { x: 38.2, y: 51.1, scale: 1.14, rotateX: 24.5, numY: -7.5 },
+    { x: 19, y: 62.8, scale: 1.14, rotateX: 37.5 },
+    { x: 27.1, y: 27.1, scale: 1.1, rotateX: -30.5 },
+    { x: 51.9, y: 37.5, scale: 1.14, rotateX: 39.5, numX: -2.5, numY: -3.5 },
+    { x: 80.1, y: 43.7, scale: 1.1, rotateX: 35, numY: -4 },
   ],
 };

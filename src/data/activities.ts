@@ -2036,22 +2036,26 @@ const world14: Activity[] = [
 
 /* World 15 — Isla del gran reto: mezcla final de todo lo aprendido.
  *
- * Eran 8 y ahora son 7. El arte tiene un pedestal más arriba de todo, pero
- * la propia lámina lo corta por la mitad: el nodo caía en y 2,7 %, o sea
- * pegado al borde superior y debajo del HUD, así que el 4 no se veía ni se
- * podía tocar y la isla se leía como 1-2-3-5-6-7-8. Es el mismo caso que la
- * isla 3, y la misma advertencia: cuidado con subir un nodo de menos de ~5
- * en esta pantalla.
+ * Eran 8 y quedaron 6, en dos podas.
  *
- * El que se sacó NO es el que estaba mal ubicado sino el que sobraba:
- * "Búsqueda del reto" eran dos frases sueltas en minúscula, sin signos ni
- * tildes ni arroba, o sea exactamente la misma destreza que "Frases del
- * reto" pero tres niveles después. Su frase larga se mudó al nivel 3, que
- * ahora va de frases cortas a frases largas. Así los 7 que quedan enseñan
- * cada uno una cosa distinta y la dificultad sube sin repetirse:
+ * La primera fue por el arte: hay un pedestal más arriba de todo, pero la
+ * propia lámina lo corta por la mitad, así que el nodo caía en y 2,7 % —
+ * pegado al borde superior y debajo del HUD — y el 4 no se veía ni se podía
+ * tocar. Se fue con él "Búsqueda del reto", que era el que sobraba: dos
+ * frases sueltas en minúscula, sin signos ni tildes ni arroba, o sea la misma
+ * destreza que "Frases del reto" pero tres niveles después.
  *
- *   1 letras 3 · 2 palabras 4 · 3 frases 5 · 4 signos y tildes 5
- *   5 correo (arroba y Shift) 6 · 6 atajos 6 · 7 todo junto 7 */
+ * La segunda fue a pedido: se sacó el botón que hacía de 3 y con él su nivel,
+ * "Frases del reto", y los de atrás corrieron un lugar. Los botones NO se
+ * movieron: cada uno quedó donde estaba y sólo cambió el número.
+ *
+ *   1 letras 3 · 2 palabras 4 · 3 signos y tildes 5
+ *   4 correo (arroba y Shift) 6 · 5 atajos 6 · 6 todo junto 7
+ *
+ * OJO con el escalón entre el 2 y el 3: la isla ya no tiene un nivel de
+ * frases sin signos, así que se pasa de escribir palabras sueltas a escribir
+ * frases con ¿ ¡ y tildes de una. Si alguna vez se quiere suavizar, el lugar
+ * es agregarle a "Signos del reto" una primera frase sin signos. */
 const world15: Activity[] = [
   makeActivity({
     worldId: "island15",
@@ -2082,22 +2086,6 @@ const world15: Activity[] = [
   makeActivity({
     worldId: "island15",
     levelNumber: 3,
-    title: "Frases del reto",
-    subtitle: "De cortas a largas",
-    instruction: "Escribí la frase completa, aunque se vaya haciendo larga.",
-    listenText: "Escribí la frase completa. Las últimas son más largas.",
-    /* La última venía del nivel "Búsqueda del reto", que se sacó por repetir
-       esta misma destreza. Acá le da al nivel un final más largo, que es lo
-       único que aquel agregaba de verdad. */
-    targets: ["soy un gran escritor", "llegue muy lejos", "casi gano el reto", "los mejores juegos de teclado"],
-    mode: "independent",
-    inputType: "phrase",
-    difficulty: 5,
-    description: "Escribí frases completas sin errores, cada vez más largas.",
-  }),
-  makeActivity({
-    worldId: "island15",
-    levelNumber: 4,
     title: "Signos del reto",
     subtitle: "Puntuación",
     instruction: "Escribí cada frase con todos sus signos.",
@@ -2111,7 +2099,7 @@ const world15: Activity[] = [
   }),
   makeActivity({
     worldId: "island15",
-    levelNumber: 5,
+    levelNumber: 4,
     title: "Correo del reto",
     subtitle: "Email completo",
     instruction: "Escribí la dirección de correo completa.",
@@ -2125,7 +2113,7 @@ const world15: Activity[] = [
   }),
   makeActivity({
     worldId: "island15",
-    levelNumber: 6,
+    levelNumber: 5,
     title: "Atajos del reto",
     subtitle: "Comandos",
     instruction: "Hacé cada atajo que aparece.",
@@ -2138,7 +2126,7 @@ const world15: Activity[] = [
   }),
   makeActivity({
     worldId: "island15",
-    levelNumber: 7,
+    levelNumber: 6,
     title: "¡Gran final!",
     subtitle: "Todo junto",
     instruction: "Escribí cada frase exactamente como aparece.",
