@@ -103,15 +103,53 @@ export function alphaConBordeSuave(data, W, H, C, fondo, bg, { entrada, umbral }
  *  (isla 10) y deja pasar enteros los huecos chicos: los que dejan las
  *  ramitas de la 7 miden entre 50 y 570 px, y el fondo se les quedaba
  *  adentro. El umbral va por isla porque lo que hay que dejar afuera —
- *  un brillo especular encerrado — pesa distinto en cada lámina. */
-export function keyBackground(data, W, H, C, fondo, rellenarHuecos) {
+ *  un brillo especular encerrado — pesa distinto en cada lámina.
+ *
+ *  `tolerancias` afina las dos pasadas cuando el dibujo tiene blancos que
+ *  el default se lleva puestos:
+ *    duroDist    (26) hasta dónde llega la pasada estricta
+ *    duroSat   (null) techo de saturación de esa pasada; null = no mira
+ *    blandoDist  (58) hasta dónde llega la pasada tolerante; 0 la apaga
+ *    blandoSat   (22) techo de saturación de la pasada tolerante
+ *    blandoSoloOscuro (false) la pasada tolerante toma únicamente lo que NO
+ *                     es más claro que el fondo
+ *
+ *  Estos dos últimos existen por la isla 8, que es el caso difícil: el
+ *  fondo es un gris azulado (240,243,247) y el botón está rodeado de NIEVE,
+ *  o sea dibujo casi del color del fondo. Ahí hay TRES cosas parecidas que
+ *  hay que separar, y ninguna medida sola alcanza:
+ *
+ *    fondo         240,243,247   distancia 0 a 12    saturación 7 a 9
+ *    sombra        231,234,239   distancia 26 a 40   saturación 8 a 11
+ *    nieve pálida  223,237,248   distancia 19 a 41   saturación 23 a 31
+ *    nieve blanca  255,255,255   distancia 35        saturación 0
+ *
+ *  Por distancia, fondo y nieve se separan cortando en 16. La sombra queda
+ *  del lado de afuera de ese corte y hay que sacarla con la pasada
+ *  tolerante, pero esa pasada tal cual llega a 58 y se lleva la nieve
+ *  blanca (35) por delante. Lo que zanja el empate es que la sombra es más
+ *  OSCURA que el fondo y la nieve es más CLARA — la distancia es un valor
+ *  absoluto y borra ese signo. De ahí blandoSoloOscuro. La saturación
+ *  termina de proteger a la nieve pálida, que sí es más oscura que el fondo
+ *  pero tiene tinte celeste, mientras que la sombra es gris. */
+export function keyBackground(data, W, H, C, fondo, rellenarHuecos, tolerancias = {}) {
+  const { duroDist = 26, duroSat = null, blandoDist = 58, blandoSat = 22,
+          blandoSoloOscuro = false } = tolerancias;
+  const luzFondo = (fondo[0] + fondo[1] + fondo[2]) / 3;
   const dist = (p) =>
     Math.abs(data[p] - fondo[0]) + Math.abs(data[p + 1] - fondo[1]) + Math.abs(data[p + 2] - fondo[2]);
-  const duro = (p) => dist(p) < 26;
-  const blando = (p) => {
+  const sat = (p) => {
     const r = data[p], g = data[p + 1], b = data[p + 2];
-    return dist(p) < 58 && Math.max(r, g, b) - Math.min(r, g, b) < 22;
+    return Math.max(r, g, b) - Math.min(r, g, b);
   };
+  const duro = (p) => dist(p) < duroDist && (duroSat === null || sat(p) < duroSat);
+  const noEsMasClaro = (p) => (data[p] + data[p + 1] + data[p + 2]) / 3 <= luzFondo;
+  /* La segunda pasada tiene que aceptar TODO lo que acepto la primera: abajo
+     se borra lo ya marcado para poder volver a recorrerlo, asi que lo que
+     esta pasada rechace se pierde aunque la primera lo hubiera tomado. */
+  const blando = (p) =>
+    duro(p) ||
+    (dist(p) < blandoDist && sat(p) < blandoSat && (!blandoSoloOscuro || noEsMasClaro(p)));
 
   const bg = new Uint8Array(W * H);
   const stack = [];
@@ -128,10 +166,16 @@ export function keyBackground(data, W, H, C, fondo, rellenarHuecos) {
   for (let x = 0; x < W; x++) stack.push(x, 0, x, H - 1);
   for (let y = 0; y < H; y++) stack.push(0, y, W - 1, y);
   correr(duro);
-  /* Semillas de la segunda pasada: los vecinos de lo que ya es fondo. */
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (bg[y * W + x]) stack.push(x, y);
-  for (let k = 0; k < stack.length; k += 2) bg[stack[k + 1] * W + stack[k]] = 0;
-  correr(blando);
+  /* Segunda pasada, solo si esta prendida. Con blandoDist 0 hay que saltearla
+     ENTERA, no basta con que el test diga que no: el bloque de abajo borra lo
+     que marco la primera para poder volver a recorrerlo, asi que correrlo con
+     un test que rechaza todo dejaba la mascara vacia y el fondo entero opaco. */
+  if (blandoDist > 0) {
+    /* Semillas de la segunda pasada: los vecinos de lo que ya es fondo. */
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (bg[y * W + x]) stack.push(x, y);
+    for (let k = 0; k < stack.length; k += 2) bg[stack[k + 1] * W + stack[k]] = 0;
+    correr(blando);
+  }
 
   /* Huecos encerrados — opcional. La inundación entra únicamente desde el
      borde, así que el fondo atrapado adentro de un lazo cerrado nunca se

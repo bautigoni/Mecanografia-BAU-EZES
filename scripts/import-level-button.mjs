@@ -53,13 +53,39 @@ const SHEETS = {
      veía como manchas blancas entre las ramitas. Los huecos van de 51 a
      566 px, muy por debajo de los 900 del umbral histórico. */
   island7:  { file: "btn-island7.png",  crop: [75, 138, 691, 407], gap: 811, base: { cx: 352, cy: 195, w: 497 }, huecos: 40 },
-  /* La 8 trae nieve blanca alrededor: contra el fondo blanco de la lámina no
-     se distingue, así que el recorte se come la parte más pálida del manto.
-     Queda la nieve con sombra azulada, que es la que se ve.
+  /* La 8 es la lámina difícil: el botón está rodeado de NIEVE, o sea dibujo
+     casi del color del fondo, que acá es un gris azulado (240,243,247) y no
+     blanco. Con los umbrales por defecto se perdía medio manto, por dos
+     caminos distintos, así que hay que apretar los dos.
+
+     Medido sobre el recorte: el fondo de verdad llega hasta distancia 12
+     (percentil 99 = 5), y la nieve más pálida arranca en 19. O sea que se
+     separan solos por distancia, sin mirar saturación, con tal de cortar
+     en el medio — de ahí el 16. Con los 26 de fábrica la inundación se
+     comía 4 puntos más del recorte, y esos 4 puntos son el manto.
+
+     Lo que queda entre 16 y 19 es el antialias del borde, y tiene que
+     quedar: sin él el recorte se ve dentado. No se le pasa el borde suave
+     de alphaConBordeSuave justamente porque acá la nieve pálida vive en ese
+     mismo rango de distancias y saldría translúcida.
+
+     La pasada tolerante NO se apaga, porque la nieve proyecta una sombra
+     gris sobre el fondo (231,234,239) que el corte en 16 deja opaca y se ve
+     como un cerco. Pero sí se le pone que tome únicamente lo que no es más
+     claro que el fondo: la sombra lo es, la nieve no, y la distancia sola
+     no los distingue (sombra 26-40 contra nieve blanca 35). El techo de
+     saturación 15 protege además a la nieve pálida, que es más oscura que
+     el fondo pero celeste, mientras que la sombra es gris.
+
+     La pasada tolerante se apaga entera: llega a 58 y la nieve blanca pura
+     queda a 35 del fondo (justamente porque el fondo no es blanco), así que
+     se la llevaba. Acá no hay sombra suave abajo que justifique el riesgo.
+
      SIN huecos a propósito, por lo mismo: lo encerrado y casi blanco de esta
      lámina es el manto de nieve y los ventisqueros del engranaje — es el
      caso que documenta por qué esto no se puede prender para todas. */
-  island8:  { file: "btn-island8.png",  crop: [26,  80, 766, 555], gap: 794, base: { cx: 383, cy: 278, w: 560 } },
+  island8:  { file: "btn-island8.png",  crop: [26,  80, 766, 555], gap: 794, base: { cx: 383, cy: 278, w: 560 },
+              tolerancias: { duroDist: 16, duroSat: 12, blandoDist: 45, blandoSat: 15, blandoSoloOscuro: true } },
   island9:  { file: "btn-island9.png",  crop: [25, 130, 780, 476], gap: 816, base: { cx: 398, cy: 262, w: 452 }, halo: { entrada: 85, umbral: 150 } },
   /* huecos: las lianas cuelgan cerrando varios lazos, y el fondo que queda
      atrapado adentro hay que rellenarlo aparte. Con el umbral viejo de 900
@@ -134,7 +160,7 @@ async function importOne(id) {
       .extract({ left: cx0 + k * s.gap, top: cy0, width: cw, height: ch })
       .raw().toBuffer({ resolveWithObject: true });
     const { width: W, height: H, channels: C } = info;
-    const bg = keyBackground(data, W, H, C, fondo, s.huecos ?? false);
+    const bg = keyBackground(data, W, H, C, fondo, s.huecos ?? false, s.tolerancias);
     /* `halo` ablanda el borde donde el dibujo se desvanece contra el fondo;
        sin él, el alfa es binario y ese degradé queda cortado en seco. */
     const alpha = s.halo ? alphaConBordeSuave(data, W, H, C, fondo, bg, s.halo) : null;
